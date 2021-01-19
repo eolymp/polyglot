@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/eolymp/contracts/go/eolymp/atlas"
 	"github.com/eolymp/contracts/go/eolymp/executor"
-	"github.com/eolymp/contracts/go/eolymp/judge"
+	"github.com/eolymp/contracts/go/eolymp/keeper"
 	"github.com/eolymp/go-packages/env"
 	"github.com/eolymp/go-packages/httpx"
 	"github.com/eolymp/go-packages/oauth"
@@ -22,30 +22,27 @@ import (
 	"time"
 )
 
+var client httpx.Client
+
 func main() {
-	index := flag.Int("index", 0, "Problem Index")
-	score := flag.Int("score", 0, "Problem Score")
+	pid := flag.String("id", "", "Problem ID")
 	flag.Parse()
 
-	client := &Client{cli: httpx.NewClient(
+	client = httpx.NewClient(
 		&http.Client{Timeout: 10 * time.Second},
 		httpx.WithCredentials(oauth.PasswordCredentials(
 			oauth.NewClient(env.StringDefault("EOLYMP_API_URL", "https://api.e-olymp.com")),
 			env.String("EOLYMP_USERNAME"),
 			env.String("EOLYMP_PASSWORD"),
 		)),
-	)}
+	)
 
-	contest, path := flag.Arg(0), flag.Arg(1)
+	atl := atlas.NewAtlas(client)
+
+	path := flag.Arg(0)
 
 	if path == "" {
 		log.Println("Path argument is empty")
-		flag.Usage()
-		os.Exit(-1)
-	}
-
-	if contest == "" {
-		log.Println("Contest argument is empty")
 		flag.Usage()
 		os.Exit(-1)
 	}
@@ -72,53 +69,154 @@ func main() {
 		os.Exit(-1)
 	}
 
-	// get testset
-	if len(spec.Judging.Testsets) != 1 {
-		log.Printf("Specification in problem.xml contains more than one testset, it's not supported yet")
-		os.Exit(-1)
+	ctx := context.Background()
+
+	statements := map[string]*atlas.Statement{}
+	testsets := map[uint32]*atlas.Testset{}
+	tests := map[string]*atlas.Test{}
+
+	// create problem
+	if *pid == "" {
+		pout, err := atl.CreateProblem(ctx, &atlas.CreateProblemInput{Problem: &atlas.Problem{}})
+		if err != nil {
+			log.Printf("Unable to create problem: %v", err)
+			os.Exit(-1)
+		}
+
+		pid = &pout.ProblemId
+
+		log.Printf("Problem created with ID %#v", *pid)
+	} else {
+		stout, err := atl.ListStatements(ctx, &atlas.ListStatementsInput{ProblemId: *pid})
+		if err != nil {
+			log.Printf("Unable to list problem statements in Atlas: %v", err)
+			os.Exit(-1)
+		}
+
+		log.Printf("Found %v existing statements", len(stout.GetItems()))
+
+		for _, s := range stout.GetItems() {
+			statements[s.GetLocale()] = s
+		}
+
+		tsout, err := atl.ListTestsets(ctx, &atlas.ListTestsetsInput{ProblemId: *pid})
+		if err != nil {
+			log.Printf("Unable to list problem testsets in Atlas: %v", err)
+			os.Exit(-1)
+		}
+
+		log.Printf("Found %v existing testsets", len(tsout.GetItems()))
+
+		for _, ts := range tsout.GetItems() {
+			testsets[ts.GetIndex()] = ts
+
+			ttout, err := atl.ListTests(ctx, &atlas.ListTestsInput{TestsetId: ts.GetId()})
+			if err != nil {
+				log.Printf("Unable to list problem tests in Atlas: %v", err)
+				os.Exit(-1)
+			}
+
+			log.Printf("Found %v existing tests in testset %v", len(ttout.GetItems()), ts.Index)
+
+			for _, tt := range ttout.GetItems() {
+				tests[fmt.Sprint(ts.Index, "/", tt.Index)] = tt
+			}
+		}
 	}
 
-	testset := spec.Judging.Testsets[0]
-
-	// convert verifier
+	// set verifier
 	verifier, err := MakeVerifier(path, spec)
 	if err != nil {
 		log.Printf("Unable to create E-Olymp verifier from specification in problem.xml: %v", err)
 		os.Exit(-1)
 	}
 
-	// compose problem object for E-Olymp
-	problem := &judge.Problem{
-		Index:         int32(*index),
-		Score:         int32(*score),
-		TimeLimit:     int32(testset.TimeLimit),
-		MemoryLimit:   int32(testset.MemoryLimit),
-		FileSizeLimit: int32(testset.MemoryLimit),
-		Verifier:      verifier,
+	if _, err = atl.UpdateVerifier(ctx, &atlas.UpdateVerifierInput{ProblemId: *pid, Verifier: verifier}); err != nil {
+		log.Printf("Unable to update problem verifier: %v", err)
+		os.Exit(-1)
 	}
 
-	// get all tests
-	for ti, ts := range testset.Tests {
-		log.Printf("Adding %v test %v (example: %v)", ts.Method, ti, ts.Sample)
+	log.Printf("Updated verifier")
 
-		input, err := MakeObject(client, filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, ti+1)))
-		if err != nil {
-			log.Printf("Unable to upload test input data to E-Olymp: %v", err)
-			os.Exit(-1)
+	// create testsets
+	for index, testset := range spec.Judging.Testsets {
+		xt, ok := testsets[uint32(index+1)]
+		if !ok {
+			xt = &atlas.Testset{}
 		}
 
-		answer, err := MakeObject(client, filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, ti+1)))
-		if err != nil {
-			log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
-			os.Exit(-1)
+		xt.Index = uint32(index + 1)
+		xt.TimeLimit = uint32(testset.TimeLimit)
+		xt.MemoryLimit = uint64(testset.MemoryLimit)
+		xt.FileSizeLimit = 536870912
+		xt.ScoringMode = atlas.Testset_EACH
+
+		if xt.Id != "" {
+			_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xt.Id, Testset: xt})
+			if err != nil {
+				log.Printf("Unable to create testset: %v", err)
+				os.Exit(-1)
+			}
+
+			log.Printf("Updated testset %v", xt.Id)
+		} else {
+			out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xt})
+			if err != nil {
+				log.Printf("Unable to create testset: %v", err)
+				os.Exit(-1)
+			}
+
+			xt.Id = out.Id
+
+			log.Printf("Created testset %v", xt.Id)
 		}
 
-		problem.Tests = append(problem.Tests, &judge.Problem_Test{
-			Index:          int32(ti + 1),
-			Example:        ts.Sample,
-			InputObjectId:  input,
-			AnswerObjectId: answer,
-		})
+		// upload tests
+		for ti, ts := range testset.Tests {
+			xtt, ok := tests[fmt.Sprint(xt.Index, "/", int32(ti+1))]
+			if !ok {
+				xtt = &atlas.Test{}
+			}
+
+			log.Printf("Processing %v test %v in testset %v (example: %v)", ts.Method, ti, xt.Index, ts.Sample)
+
+			input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, ti+1)))
+			if err != nil {
+				log.Printf("Unable to upload test input data to E-Olymp: %v", err)
+				os.Exit(-1)
+			}
+
+			answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, ti+1)))
+			if err != nil {
+				log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
+				os.Exit(-1)
+			}
+
+			xtt.Index = int32(ti + 1)
+			xtt.Example = ts.Sample
+			xtt.Score = int32(ts.Points)
+			xtt.InputObjectId = input
+			xtt.AnswerObjectId = answer
+
+			if xtt.Id == "" {
+				out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xt.Id, Test: xtt})
+				if err != nil {
+					log.Printf("Unable to create test: %v", err)
+					os.Exit(-1)
+				}
+
+				xtt.Id = out.Id
+
+				log.Printf("Created test %v", xtt.Id)
+			} else {
+				if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
+					log.Printf("Unable to update test: %v", err)
+					os.Exit(-1)
+				}
+
+				log.Printf("Updated test %v", xtt.Id)
+			}
+		}
 	}
 
 	// get all statements
@@ -127,7 +225,7 @@ func main() {
 			continue
 		}
 
-		log.Printf("Adding statement in %#v", ss.Language)
+		log.Printf("Processing statement in %#v", ss.Language)
 
 		statement, err := MakeStatement(path, &ss)
 		if err != nil {
@@ -135,29 +233,49 @@ func main() {
 			os.Exit(-1)
 		}
 
-		problem.Statements = append(problem.Statements, statement)
+		xs, ok := statements[statement.GetLocale()]
+		if !ok {
+			xs = statement
+		} else {
+			xs.Locale = statement.Locale
+			xs.Title = statement.Title
+			xs.Content = statement.Content
+			xs.Format = statement.Format
+			xs.Author = statement.Author
+			xs.Source = statement.Source
+		}
+
+		if xs.Id == "" {
+			out, err := atl.CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
+			if err != nil {
+				log.Printf("Unable to create statement: %v", err)
+				os.Exit(-1)
+			}
+
+			xs.Id = out.Id
+
+			log.Printf("Created statement %v", xs.Id)
+		} else {
+			_, err = atl.UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs})
+			if err != nil {
+				log.Printf("Unable to create statement: %v", err)
+				os.Exit(-1)
+			}
+
+			log.Printf("Updated statement %v", xs.Id)
+		}
 	}
-
-	out, err := client.CreateProblem(context.Background(), &judge.CreateProblemInput{
-		ContestId: contest,
-		Problem:   problem,
-	})
-
-	if err != nil {
-		log.Printf("Unable to create E-Olymp problem: %v", err)
-		os.Exit(-1)
-	}
-
-	log.Printf("Problem created with ID %#v", out.GetProblemId())
 }
 
-func MakeObject(client *Client, path string) (string, error) {
+func MakeObject(path string) (string, error) {
+	kpr := keeper.NewKeeper(client)
+
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
 
-	out, err := client.CreateObject(context.Background(), &atlas.CreateObjectInput{Data: data})
+	out, err := kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
 	if err != nil {
 		return "", err
 	}
@@ -207,9 +325,14 @@ func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) 
 
 			log.Printf("Unknown checker name %#v, using source code", spec.Checker.Name)
 
+			data, err := ioutil.ReadFile(filepath.Join(path, source.Path))
+			if err != nil {
+				return nil, err
+			}
+
 			return &executor.Verifier{
 				Type:   executor.Verifier_PROGRAM,
-				Source: filepath.Join(path, source.Path), // todo: actually read file
+				Source: string(data), // todo: actually read file
 				Lang:   lang,
 			}, nil
 		}
@@ -218,7 +341,7 @@ func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) 
 	return nil, errors.New("checker configuration is not supported")
 }
 
-func MakeStatement(path string, statement *SpecificationStatement) (*judge.Problem_Statement, error) {
+func MakeStatement(path string, statement *SpecificationStatement) (*atlas.Statement, error) {
 	locale, err := MakeStatementLocale(statement.Language)
 	if err != nil {
 		return nil, err
@@ -237,22 +360,27 @@ func MakeStatement(path string, statement *SpecificationStatement) (*judge.Probl
 
 	parts := []string{props.Legend}
 	if props.Input != "" {
-		parts = append(parts, fmt.Sprintf("### Input\n\n%v", props.Input))
+		parts = append(parts, fmt.Sprintf("\\InputFile\n\n%v", props.Input))
 	}
 
 	if props.Output != "" {
-		parts = append(parts, fmt.Sprintf("### Output\n\n%v", props.Output))
+		parts = append(parts, fmt.Sprintf("\\OutputFile\n\n%v", props.Output))
 	}
 
 	if props.Notes != "" {
-		parts = append(parts, fmt.Sprintf("### Notes\n\n%v", props.Notes))
+		parts = append(parts, fmt.Sprintf("\\Note\n\n%v", props.Notes))
 	}
 
-	return &judge.Problem_Statement{
+	if props.Scoring != "" {
+		parts = append(parts, fmt.Sprintf("\\Scoring\n\n%v", props.Scoring))
+	}
+
+	return &atlas.Statement{
 		Locale:  locale,
 		Title:   props.Name,
 		Content: strings.Join(parts, "\n\n"),
-		Format:  judge.Problem_Statement_TEX,
+		Format:  atlas.Statement_TEX,
+		Author:  props.AuthorName,
 	}, nil
 }
 

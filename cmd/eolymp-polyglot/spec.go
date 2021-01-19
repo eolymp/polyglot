@@ -1,7 +1,5 @@
 package main
 
-import "log"
-
 type Specification struct {
 	Names      []SpecificationName      `xml:"names>name"`
 	Statements []SpecificationStatement `xml:"statements>statement"`
@@ -37,9 +35,10 @@ type SpecificationTestset struct {
 }
 
 type SpecificationTest struct {
-	Method  string `xml:"method,attr"`
-	Command string `xml:"cmd,attr"`
-	Sample  bool   `xml:"sample,attr"`
+	Method  string  `xml:"method,attr"`
+	Command string  `xml:"cmd,attr"`
+	Sample  bool    `xml:"sample,attr"`
+	Points  float32 `xml:"points,attr"`
 }
 
 type SpecificationChecker struct {
@@ -66,6 +65,7 @@ type PolygonProblemProperties struct {
 	Input       string `json:"input"`
 	Output      string `json:"output"`
 	Notes       string `json:"notes"`
+	Scoring     string `json:"scoring"`
 	AuthorLogin string `json:"authorLogin"`
 	AuthorName  string `json:"authorName"`
 }
@@ -77,7 +77,6 @@ func SourceByType(sources []SpecificationSource, types ...string) (*Specificatio
 	}
 
 	for _, s := range sources {
-		log.Println("checking", s.Type)
 		if v[s.Type] {
 			return &s, true
 		}
