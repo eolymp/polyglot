@@ -29,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	client = httpx.NewClient(
-		&http.Client{Timeout: 10 * time.Second},
+		&http.Client{Timeout: 30 * time.Second},
 		httpx.WithCredentials(oauth.PasswordCredentials(
 			oauth.NewClient(env.StringDefault("EOLYMP_API_URL", "https://api.e-olymp.com")),
 			env.String("EOLYMP_USERNAME"),
@@ -67,6 +67,10 @@ func main() {
 	if err := xml.NewDecoder(specf).Decode(&spec); err != nil {
 		log.Printf("Unable to parse problem.xml: %v", err)
 		os.Exit(-1)
+	}
+
+	if len(spec.Judging.Testsets) > 0 {
+		log.Printf("More than 1 testset defined in problem.xml, only first one will be imported")
 	}
 
 	ctx := context.Background()
@@ -139,83 +143,135 @@ func main() {
 	log.Printf("Updated verifier")
 
 	// create testsets
-	for index, testset := range spec.Judging.Testsets {
-		xt, ok := testsets[uint32(index+1)]
-		if !ok {
-			xt = &atlas.Testset{}
+	if len(spec.Judging.Testsets) > 0 {
+		testset := spec.Judging.Testsets[0]
+
+		// read tests by group
+		groupTests := map[uint32][]SpecificationTest{}
+		testIndex := map[string]int{}
+		for gi, test := range testset.Tests {
+			groupTests[test.Group] = append(groupTests[test.Group], test)
+			testIndex[fmt.Sprint(test.Group+1, "/", len(groupTests[test.Group]))] = gi
 		}
 
-		xt.Index = uint32(index + 1)
-		xt.TimeLimit = uint32(testset.TimeLimit)
-		xt.MemoryLimit = uint64(testset.MemoryLimit)
-		xt.FileSizeLimit = 536870912
-		xt.ScoringMode = atlas.Testset_EACH
-
-		if xt.Id != "" {
-			_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xt.Id, Testset: xt})
-			if err != nil {
-				log.Printf("Unable to create testset: %v", err)
-				os.Exit(-1)
+		groups := testset.Groups
+		if len(groups) == 0 {
+			groups = []SpecificationGroup{
+				{FeedbackPolicy: "complete", Name: 0, Points: 0, PointsPolicy: "each-test"},
 			}
-
-			log.Printf("Updated testset %v", xt.Id)
-		} else {
-			out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xt})
-			if err != nil {
-				log.Printf("Unable to create testset: %v", err)
-				os.Exit(-1)
-			}
-
-			xt.Id = out.Id
-
-			log.Printf("Created testset %v", xt.Id)
 		}
 
-		// upload tests
-		for ti, ts := range testset.Tests {
-			xtt, ok := tests[fmt.Sprint(xt.Index, "/", int32(ti+1))]
+		for _, group := range testset.Groups {
+			xts, ok := testsets[group.Name]
 			if !ok {
-				xtt = &atlas.Test{}
+				xts = &atlas.Testset{}
 			}
 
-			log.Printf("Processing %v test %v in testset %v (example: %v)", ts.Method, ti, xt.Index, ts.Sample)
+			delete(testsets, group.Name)
 
-			input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, ti+1)))
-			if err != nil {
-				log.Printf("Unable to upload test input data to E-Olymp: %v", err)
-				os.Exit(-1)
+			xts.Index = group.Name
+			xts.TimeLimit = uint32(testset.TimeLimit)
+			xts.MemoryLimit = uint64(testset.MemoryLimit)
+			xts.FileSizeLimit = 536870912
+
+			xts.ScoringMode = atlas.Testset_EACH
+			if group.PointsPolicy == "complete-group" {
+				xts.ScoringMode = atlas.Testset_ALL
 			}
 
-			answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, ti+1)))
-			if err != nil {
-				log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
-				os.Exit(-1)
+			xts.Dependencies = nil
+			for _, d := range group.Dependencies {
+				xts.Dependencies = append(xts.Dependencies, d.Group+1)
 			}
 
-			xtt.Index = int32(ti + 1)
-			xtt.Example = ts.Sample
-			xtt.Score = int32(ts.Points)
-			xtt.InputObjectId = input
-			xtt.AnswerObjectId = answer
-
-			if xtt.Id == "" {
-				out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xt.Id, Test: xtt})
+			if xts.Id != "" {
+				_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, Testset: xts})
 				if err != nil {
-					log.Printf("Unable to create test: %v", err)
+					log.Printf("Unable to create testset: %v", err)
 					os.Exit(-1)
 				}
 
-				xtt.Id = out.Id
-
-				log.Printf("Created test %v", xtt.Id)
+				log.Printf("Updated testset %v", xts.Id)
 			} else {
-				if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
-					log.Printf("Unable to update test: %v", err)
+				out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
+				if err != nil {
+					log.Printf("Unable to create testset: %v", err)
 					os.Exit(-1)
 				}
 
-				log.Printf("Updated test %v", xtt.Id)
+				xts.Id = out.Id
+
+				log.Printf("Created testset %v", xts.Id)
 			}
+
+			// upload tests
+			for ti, ts := range groupTests[group.Name] {
+				xtt, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+				if !ok {
+					xtt = &atlas.Test{}
+				}
+
+				delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
+
+				// index in the test list from specification
+				gi := testIndex[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+
+				log.Printf("Processing %v test %v (Global Index: %v, ID: %#v) in testset %v (example: %v)", ts.Method, ti, gi, xtt.Id, xts.Index, ts.Sample)
+
+				input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, gi+1)))
+				if err != nil {
+					log.Printf("Unable to upload test input data to E-Olymp: %v", err)
+					os.Exit(-1)
+				}
+
+				answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)))
+				if err != nil {
+					log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
+					os.Exit(-1)
+				}
+
+				xtt.Index = int32(ti + 1)
+				xtt.Example = ts.Sample
+				xtt.Score = ts.Points
+				xtt.InputObjectId = input
+				xtt.AnswerObjectId = answer
+
+				if xtt.Id == "" {
+					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
+					if err != nil {
+						log.Printf("Unable to create test: %v", err)
+						os.Exit(-1)
+					}
+
+					xtt.Id = out.Id
+
+					log.Printf("Created test %v", xtt.Id)
+				} else {
+					if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
+						log.Printf("Unable to update test: %v", err)
+						os.Exit(-1)
+					}
+
+					log.Printf("Updated test %v", xtt.Id)
+				}
+			}
+		}
+	}
+
+	// remove unused objects
+	for _, test := range tests {
+		log.Printf("Deleting unused test %v", test.Id)
+		if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id}); err != nil {
+			log.Printf("Unable to delete test: %v", err)
+			os.Exit(-1)
+		}
+	}
+
+	for _, testset := range testsets {
+		log.Printf("Deleting unused testset %v", testset.Id)
+		if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id}); err != nil {
+			log.Printf("Unable to delete testset: %v", err)
+			os.Exit(-1)
 		}
 	}
 
@@ -245,6 +301,8 @@ func main() {
 			xs.Source = statement.Source
 		}
 
+		delete(statements, statement.GetLocale())
+
 		if xs.Id == "" {
 			out, err := atl.CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
 			if err != nil {
@@ -265,9 +323,18 @@ func main() {
 			log.Printf("Updated statement %v", xs.Id)
 		}
 	}
+
+	// remove unused objects
+	for _, statement := range statements {
+		log.Printf("Deleting unused statement %v", statement.Id)
+		if _, err := atl.DeleteStatement(ctx, &atlas.DeleteStatementInput{StatementId: statement.Id}); err != nil {
+			log.Printf("Unable to delete statement: %v", err)
+			os.Exit(-1)
+		}
+	}
 }
 
-func MakeObject(path string) (string, error) {
+func MakeObject(path string) (key string, err error) {
 	kpr := keeper.NewKeeper(client)
 
 	data, err := ioutil.ReadFile(path)
@@ -275,12 +342,17 @@ func MakeObject(path string) (string, error) {
 		return "", err
 	}
 
-	out, err := kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
-	if err != nil {
-		return "", err
+	var out *keeper.CreateObjectOutput
+	for i := 0; i < 10; i++ {
+		out, err = kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
+		if err == nil {
+			return out.Key, nil
+		}
+
+		log.Printf("Error while uploading file: %v", err)
 	}
 
-	return out.Key, nil
+	return "", err
 }
 
 func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) {

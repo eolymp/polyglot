@@ -25,20 +25,34 @@ type SpecificationJudging struct {
 }
 
 type SpecificationTestset struct {
-	Name              string              `xml:"name,attr"`
-	TimeLimit         int                 `xml:"time-limit"`
-	MemoryLimit       int                 `xml:"memory-limit"`
-	TestCount         int                 `xml:"test-count"`
-	InputPathPattern  string              `xml:"input-path-pattern"`
-	AnswerPathPattern string              `xml:"answer-path-pattern"`
-	Tests             []SpecificationTest `xml:"tests>test"`
+	Name              string               `xml:"name,attr"`
+	TimeLimit         int                  `xml:"time-limit"`
+	MemoryLimit       int                  `xml:"memory-limit"`
+	TestCount         int                  `xml:"test-count"`
+	InputPathPattern  string               `xml:"input-path-pattern"`
+	AnswerPathPattern string               `xml:"answer-path-pattern"`
+	Tests             []SpecificationTest  `xml:"tests>test"`
+	Groups            []SpecificationGroup `xml:"groups>group"`
 }
 
 type SpecificationTest struct {
 	Method  string  `xml:"method,attr"`
+	Group   uint32  `xml:"group,attr"`
 	Command string  `xml:"cmd,attr"`
 	Sample  bool    `xml:"sample,attr"`
 	Points  float32 `xml:"points,attr"`
+}
+
+type SpecificationGroup struct {
+	FeedbackPolicy string                    `xml:"feedback-policy,attr"`
+	Name           uint32                    `xml:"name,attr"`
+	Points         float32                   `xml:"points,attr"`
+	PointsPolicy   string                    `xml:"points-policy,attr"`
+	Dependencies   []SpecificationDependency `xml:"dependencies>dependency"`
+}
+
+type SpecificationDependency struct {
+	Group uint32 `xml:"group,attr"`
 }
 
 type SpecificationChecker struct {
