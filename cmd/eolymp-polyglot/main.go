@@ -151,7 +151,7 @@ func main() {
 		testIndex := map[string]int{}
 		for gi, test := range testset.Tests {
 			groupTests[test.Group] = append(groupTests[test.Group], test)
-			testIndex[fmt.Sprint(test.Group+1, "/", len(groupTests[test.Group]))] = gi
+			testIndex[fmt.Sprint(test.Group, "/", len(groupTests[test.Group]))] = gi
 		}
 
 		groups := testset.Groups
@@ -177,6 +177,11 @@ func main() {
 			xts.ScoringMode = atlas.Testset_EACH
 			if group.PointsPolicy == "complete-group" {
 				xts.ScoringMode = atlas.Testset_ALL
+			}
+
+			xts.FeedbackPolicy = atlas.Testset_COMPLETE
+			if group.FeedbackPolicy == "icpc" {
+				xts.FeedbackPolicy = atlas.Testset_ICPC
 			}
 
 			xts.Dependencies = nil
