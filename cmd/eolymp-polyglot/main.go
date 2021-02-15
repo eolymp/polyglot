@@ -186,7 +186,7 @@ func main() {
 
 			xts.Dependencies = nil
 			for _, d := range group.Dependencies {
-				xts.Dependencies = append(xts.Dependencies, d.Group+1)
+				xts.Dependencies = append(xts.Dependencies, d.Group)
 			}
 
 			if xts.Id != "" {
