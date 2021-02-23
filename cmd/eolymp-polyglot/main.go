@@ -69,7 +69,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	if len(spec.Judging.Testsets) > 0 {
+	if len(spec.Judging.Testsets) > 1 {
 		log.Printf("More than 1 testset defined in problem.xml, only first one will be imported")
 	}
 
@@ -161,7 +161,7 @@ func main() {
 			}
 		}
 
-		for _, group := range testset.Groups {
+		for _, group := range groups {
 			xts, ok := testsets[group.Name]
 			if !ok {
 				xts = &atlas.Testset{}
