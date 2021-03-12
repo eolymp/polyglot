@@ -5,6 +5,7 @@ type Specification struct {
 	Statements []SpecificationStatement `xml:"statements>statement"`
 	Judging    SpecificationJudging     `xml:"judging"`
 	Checker    SpecificationChecker     `xml:"assets>checker"`
+	Interactor SpecificationInteractor  `xml:"assets>interactor"`
 }
 
 type SpecificationName struct {
@@ -58,6 +59,12 @@ type SpecificationDependency struct {
 type SpecificationChecker struct {
 	Name     string                `xml:"name,attr"`
 	Type     string                `xml:"type,attr"`
+	Sources  []SpecificationSource `xml:"source"`
+	Binaries []SpecificationBinary `xml:"binary"`
+}
+
+type SpecificationInteractor struct {
+	Name     string                `xml:"name,attr"`
 	Sources  []SpecificationSource `xml:"source"`
 	Binaries []SpecificationBinary `xml:"binary"`
 }

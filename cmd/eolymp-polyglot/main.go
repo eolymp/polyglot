@@ -142,6 +142,25 @@ func main() {
 
 	log.Printf("Updated verifier")
 
+	// set interactor
+
+	if len(spec.Interactor.Sources) != 0 {
+		interactor, err := MakeInteractor(path, spec)
+		if err != nil {
+			log.Printf("Unable to create E-Olymp interactor from specification in problem.xml: %v", err)
+			os.Exit(-1)
+		}
+
+		if _, err = atl.UpdateInteractor(ctx, &atlas.UpdateInteractorInput{ProblemId: *pid, Interactor: interactor}); err != nil {
+			log.Printf("Unable to update problem interactor: %v", err)
+			os.Exit(-1)
+		}
+
+		log.Printf("Updated interactor")
+	} else {
+		log.Printf("No interactor found")
+	}
+
 	// create testsets
 	if len(spec.Judging.Testsets) > 0 {
 		testset := spec.Judging.Testsets[0]
@@ -416,6 +435,45 @@ func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) 
 	}
 
 	return nil, errors.New("checker configuration is not supported")
+}
+
+func MakeInteractor(path string, spec *Specification) (*executor.Interactor, error) {
+
+	mapping := map[string][]string{
+		"gpp":    {"c.gcc", "cpp.g++", "cpp.g++11", "cpp.g++14", "cpp.g++17", "cpp.ms"},
+		"csharp": {"csharp.mono"},
+		"d":      {"d"},
+		"go":     {"go"},
+		"java":   {"java11", "java8"},
+		"kotlin": {"kotlin"},
+		"fpc":    {"pas.dpr", "pas.fpc"},
+		"php":    {"php.5"},
+		"python": {"python.2", "python.3"},
+		"pypy":   {"python.pypy2", "python.pypy3"},
+		"ruby":   {"ruby"},
+		"rust":   {"rust"},
+	}
+
+	for lang, types := range mapping {
+		source, ok := SourceByType(spec.Interactor.Sources, types...)
+		if !ok {
+			continue
+		}
+
+		log.Printf("Unknown interactor name %#v, using source code", spec.Checker.Name)
+
+		data, err := ioutil.ReadFile(filepath.Join(path, source.Path))
+		if err != nil {
+			return nil, err
+		}
+
+		return &executor.Interactor{
+			Source: string(data), // todo: actually read file
+			Lang:   lang,
+		}, nil
+	}
+
+	return nil, errors.New("interactor configuration is not supported")
 }
 
 func MakeStatement(path string, statement *SpecificationStatement) (*atlas.Statement, error) {
