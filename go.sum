@@ -24,6 +24,8 @@ github.com/eolymp/contracts v0.0.0-20210213120841-dbf68400f8aa h1:rBqcsGPCIAjWKq
 github.com/eolymp/contracts v0.0.0-20210213120841-dbf68400f8aa/go.mod h1:8I7Q5MyusslTd5K4u1UVCeiwYxJKPNkEnUcr94TR6t4=
 github.com/eolymp/contracts v0.0.0-20210215144911-3cec4e102c6b h1:MzGgfdP7ENirKWQzB9TP7i06NkXSpnFRsr2jCSDEPWs=
 github.com/eolymp/contracts v0.0.0-20210215144911-3cec4e102c6b/go.mod h1:8I7Q5MyusslTd5K4u1UVCeiwYxJKPNkEnUcr94TR6t4=
+github.com/eolymp/contracts v0.0.0-20210316132956-b1e13deb6632 h1:cO5lKX4NkzOlROLPt6PKGjpKQr6MC04gSL2EQq2qrrI=
+github.com/eolymp/contracts v0.0.0-20210316132956-b1e13deb6632/go.mod h1:8I7Q5MyusslTd5K4u1UVCeiwYxJKPNkEnUcr94TR6t4=
 github.com/eolymp/go-packages v0.0.0-20201205120802-75179f15c4f1 h1:hcoLsUTlb9cNTCA5NdBfukYFdy0ULCFFx3Tn/kC7Ogc=
 github.com/eolymp/go-packages v0.0.0-20201205120802-75179f15c4f1/go.mod h1:ryU2F8PTpxlTUEIMaPp/TnZB8Cz2Tori6ZsVkkplJuI=
 github.com/eolymp/go-proto-http v0.0.0-20201210174404-28481602bedd/go.mod h1:ht76ravLQ2TdRs1YLabAixU2fVP8kGxigEcm0Ur7RqA=
