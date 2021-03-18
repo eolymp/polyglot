@@ -135,6 +135,12 @@ func main() {
 		"files/template_py.py":			{"pypy", "python"},
 	}
 
+	templates, err := atl.ListCodeTemplates(ctx, &atlas.ListCodeTemplatesInput{ProblemId: *pid})
+
+	for _, template := range templates.GetItems(){
+		atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
+	}
+
 	for _, file := range spec.Files {
 		name := file.Source.Path
 		if list, ok := templateLanguages[name]; ok {
