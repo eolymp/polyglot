@@ -3,6 +3,7 @@ package main
 type Specification struct {
 	Names      []SpecificationName      `xml:"names>name"`
 	Statements []SpecificationStatement `xml:"statements>statement"`
+	Files      []SpecificationFile      `xml:"files>executables>executable"`
 	Judging    SpecificationJudging     `xml:"judging"`
 	Checker    SpecificationChecker     `xml:"assets>checker"`
 	Interactor SpecificationInteractor  `xml:"assets>interactor"`
@@ -19,6 +20,11 @@ type SpecificationStatement struct {
 	MathJAX  bool   `xml:"mathjax,attr"`
 	Path     string `xml:"path,attr"`
 	Type     string `xml:"type,attr"`
+}
+
+type SpecificationFile struct {
+	Source  SpecificationSource `xml:"source"`
+	Binarie SpecificationBinary `xml:"binary"`
 }
 
 type SpecificationJudging struct {
@@ -84,6 +90,7 @@ type PolygonProblemProperties struct {
 	Name        string `json:"name"`
 	Legend      string `json:"legend"`
 	Input       string `json:"input"`
+	Interaction string `json:"interaction"`
 	Output      string `json:"output"`
 	Notes       string `json:"notes"`
 	Scoring     string `json:"scoring"`

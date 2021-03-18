@@ -69,6 +69,14 @@ func main() {
 		os.Exit(-1)
 	}
 
+	for _, file := range spec.Files {
+		name := file.Source.Path
+		if name == "files/template_cpp.cpp" {
+
+		}
+		log.Print(name)
+	}
+
 	if len(spec.Judging.Testsets) > 1 {
 		log.Printf("More than 1 testset defined in problem.xml, only first one will be imported")
 	}
@@ -496,6 +504,10 @@ func MakeStatement(path string, statement *SpecificationStatement) (*atlas.State
 	parts := []string{props.Legend}
 	if props.Input != "" {
 		parts = append(parts, fmt.Sprintf("\\InputFile\n\n%v", props.Input))
+	}
+
+	if props.Interaction != "" {
+		parts = append(parts, fmt.Sprintf("\\Interaction\n\n%v", props.Interaction))
 	}
 
 	if props.Output != "" {
