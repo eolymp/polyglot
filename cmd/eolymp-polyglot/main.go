@@ -69,14 +69,6 @@ func main() {
 		os.Exit(-1)
 	}
 
-	for _, file := range spec.Files {
-		name := file.Source.Path
-		if name == "files/template_cpp.cpp" {
-
-		}
-		log.Print(name)
-	}
-
 	if len(spec.Judging.Testsets) > 1 {
 		log.Printf("More than 1 testset defined in problem.xml, only first one will be imported")
 	}
@@ -132,6 +124,32 @@ func main() {
 
 			for _, tt := range ttout.GetItems() {
 				tests[fmt.Sprint(ts.Index, "/", tt.Index)] = tt
+			}
+		}
+	}
+
+	templateLanguages := map[string][]string{
+		"files/template_cpp.cpp":		{"gpp"},
+		"files/template_java.java":		{"java"},
+		"files/template_pas.pas":		{"fpc"},
+		"files/template_py.py":			{"pypy", "python"},
+	}
+
+	for _, file := range spec.Files {
+		name := file.Source.Path
+		if list, ok := templateLanguages[name]; ok {
+			for _, lang := range list {
+				template := &atlas.Template{}
+				template.ProblemId = *pid
+				template.Runtime = lang
+				source, err := ioutil.ReadFile(filepath.Join(path, file.Source.Path))
+				if err != nil {
+					log.Printf("Unable to list problem tests in Atlas: %v", err)
+					os.Exit(-1)
+				}
+				template.Source = string(source)
+				atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+				log.Printf("Added a template for %s", lang)
 			}
 		}
 	}
