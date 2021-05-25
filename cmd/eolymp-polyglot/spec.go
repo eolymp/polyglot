@@ -3,6 +3,7 @@ package main
 type Specification struct {
 	Names      []SpecificationName      `xml:"names>name"`
 	Statements []SpecificationStatement `xml:"statements>statement"`
+	Solutions  []SpecificationSolution  `xml:"tutorials>tutorial"`
 	Files      []SpecificationFile      `xml:"files>executables>executable"`
 	Judging    SpecificationJudging     `xml:"judging"`
 	Checker    SpecificationChecker     `xml:"assets>checker"`
@@ -15,6 +16,14 @@ type SpecificationName struct {
 }
 
 type SpecificationStatement struct {
+	Charset  string `xml:"charset,attr"`
+	Language string `xml:"language,attr"`
+	MathJAX  bool   `xml:"mathjax,attr"`
+	Path     string `xml:"path,attr"`
+	Type     string `xml:"type,attr"`
+}
+
+type SpecificationSolution struct {
 	Charset  string `xml:"charset,attr"`
 	Language string `xml:"language,attr"`
 	MathJAX  bool   `xml:"mathjax,attr"`
@@ -96,6 +105,7 @@ type PolygonProblemProperties struct {
 	Scoring     string `json:"scoring"`
 	AuthorLogin string `json:"authorLogin"`
 	AuthorName  string `json:"authorName"`
+	Solution    string `json:"tutorial"`
 }
 
 func SourceByType(sources []SpecificationSource, types ...string) (*SpecificationSource, bool) {

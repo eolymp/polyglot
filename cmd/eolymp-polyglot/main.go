@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/flate"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -13,20 +14,26 @@ import (
 	"github.com/eolymp/go-packages/env"
 	"github.com/eolymp/go-packages/httpx"
 	"github.com/eolymp/go-packages/oauth"
+	"github.com/mholt/archiver"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
+const DownloadsDir = "downloads"
+const PolygonLogin = "POLYGON_LOGIN"
+const PolygonPassword = "POLYGON_PASSWORD"
+
 var client httpx.Client
+var atl *atlas.AtlasService
 
 func main() {
-	pid := flag.String("id", "", "Problem ID")
-	flag.Parse()
 
 	client = httpx.NewClient(
 		&http.Client{Timeout: 30 * time.Second},
@@ -37,19 +44,129 @@ func main() {
 		)),
 	)
 
-	atl := atlas.NewAtlas(client)
+	atl = atlas.NewAtlas(client)
 
-	path := flag.Arg(0)
+	pid := flag.String("id", "", "Problem ID")
+	flag.Parse()
 
-	if path == "" {
-		log.Println("Path argument is empty")
-		flag.Usage()
-		os.Exit(-1)
+	command := flag.Arg(0)
+
+	if command == "ip" {
+
+		path := flag.Arg(1)
+		if path == "" {
+			log.Println("Path argument is empty")
+			flag.Usage()
+			os.Exit(-1)
+		}
+
+		if err := ImportProblem(path, pid); err != nil {
+			log.Fatal(err)
+		}
+
+	} else if command == "dp" {
+
+		link := flag.Arg(1)
+		if link == "" {
+			log.Println("Link argument is empty")
+			flag.Usage()
+			os.Exit(-1)
+		}
+
+		path, err := DownloadProblem(link)
+		if err != nil {
+			log.Println("Failed to download problem")
+			os.Exit(-1)
+		}
+
+		if err := ImportProblem(path, pid); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Println("Unknown command")
 	}
+
+}
+
+func DownloadProblem(link string) (path string, err error) {
+	log.Println("Started polygon download")
+	if env.String(PolygonLogin) == "" || env.String(PolygonPassword) == "" {
+		return "", fmt.Errorf("No polygon credentials")
+	}
+	if _, err := os.Stat(DownloadsDir); os.IsNotExist(err) {
+		err = os.Mkdir(DownloadsDir, 0777)
+		if err != nil {
+			log.Println("Failed to create dir")
+			return "", err
+		}
+	}
+	name := link[strings.LastIndex(link, "/")+1:]
+	location := DownloadsDir + "/" + name
+	if err := DownloadFileAndUnzip(link, env.String(PolygonLogin), env.String(PolygonPassword), location); err != nil {
+		log.Println("Failed to download from polygon")
+		return "", err
+	}
+
+	log.Println("Finished polygon download")
+	return location, nil
+}
+
+func DownloadFileAndUnzip(URL, login, password, location string) error {
+	response, err := http.PostForm(URL, url.Values{"login": {login}, "password": {password}, "type": {"windows"}})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+
+	if response.StatusCode != 200 {
+		return errors.New("Non 200 status code")
+	}
+
+	file, err := os.Create(location + ".zip")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	if _, err = io.Copy(file, response.Body); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(location); !os.IsNotExist(err) {
+		if err = os.RemoveAll(location); err != nil {
+			return err
+		}
+	}
+
+	if err = os.Mkdir(location, 0777); err != nil {
+		return err
+	}
+
+	z := archiver.Zip{
+		CompressionLevel:       flate.DefaultCompression,
+		MkdirAll:               true,
+		SelectiveCompression:   true,
+		ContinueOnError:        true,
+		OverwriteExisting:      true,
+		ImplicitTopLevelFolder: false,
+	}
+	if err = z.Unarchive(location+".zip", location); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func ImportProblem(path string, pid *string) error {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		log.Printf("Import path %#v is invalid: %v", path, err)
-		os.Exit(-1)
+		return err
 	}
 
 	spec := &Specification{}
@@ -57,7 +174,7 @@ func main() {
 	specf, err := os.Open(filepath.Join(path, "problem.xml"))
 	if err != nil {
 		log.Printf("Unable to open problem.xml: %v", err)
-		os.Exit(-1)
+		return err
 	}
 
 	defer func() {
@@ -66,7 +183,7 @@ func main() {
 
 	if err := xml.NewDecoder(specf).Decode(&spec); err != nil {
 		log.Printf("Unable to parse problem.xml: %v", err)
-		os.Exit(-1)
+		return err
 	}
 
 	for _, file := range spec.Files {
@@ -84,6 +201,7 @@ func main() {
 	ctx := context.Background()
 
 	statements := map[string]*atlas.Statement{}
+	solutions := map[string]*atlas.Solution{}
 	testsets := map[uint32]*atlas.Testset{}
 	tests := map[string]*atlas.Test{}
 
@@ -92,7 +210,7 @@ func main() {
 		pout, err := atl.CreateProblem(ctx, &atlas.CreateProblemInput{Problem: &atlas.Problem{}})
 		if err != nil {
 			log.Printf("Unable to create problem: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		pid = &pout.ProblemId
@@ -102,7 +220,7 @@ func main() {
 		stout, err := atl.ListStatements(ctx, &atlas.ListStatementsInput{ProblemId: *pid})
 		if err != nil {
 			log.Printf("Unable to list problem statements in Atlas: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		log.Printf("Found %v existing statements", len(stout.GetItems()))
@@ -111,10 +229,22 @@ func main() {
 			statements[s.GetLocale()] = s
 		}
 
+		solout, err := atl.ListSolutions(ctx, &atlas.ListSolutionsInput{ProblemId: *pid})
+		if err != nil {
+			log.Printf("Unable to list problem solutions in Atlas: %v", err)
+			return err
+		}
+
+		log.Printf("Found %v existing solutions", len(solout.GetItems()))
+
+		for _, s := range solout.GetItems() {
+			solutions[s.GetLocale()] = s
+		}
+
 		tsout, err := atl.ListTestsets(ctx, &atlas.ListTestsetsInput{ProblemId: *pid})
 		if err != nil {
 			log.Printf("Unable to list problem testsets in Atlas: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		log.Printf("Found %v existing testsets", len(tsout.GetItems()))
@@ -125,7 +255,7 @@ func main() {
 			ttout, err := atl.ListTests(ctx, &atlas.ListTestsInput{TestsetId: ts.GetId()})
 			if err != nil {
 				log.Printf("Unable to list problem tests in Atlas: %v", err)
-				os.Exit(-1)
+				return err
 			}
 
 			log.Printf("Found %v existing tests in testset %v", len(ttout.GetItems()), ts.Index)
@@ -140,12 +270,12 @@ func main() {
 	verifier, err := MakeVerifier(path, spec)
 	if err != nil {
 		log.Printf("Unable to create E-Olymp verifier from specification in problem.xml: %v", err)
-		os.Exit(-1)
+		return err
 	}
 
 	if _, err = atl.UpdateVerifier(ctx, &atlas.UpdateVerifierInput{ProblemId: *pid, Verifier: verifier}); err != nil {
 		log.Printf("Unable to update problem verifier: %v", err)
-		os.Exit(-1)
+		return err
 	}
 
 	log.Printf("Updated verifier")
@@ -156,12 +286,12 @@ func main() {
 		interactor, err := MakeInteractor(path, spec)
 		if err != nil {
 			log.Printf("Unable to create E-Olymp interactor from specification in problem.xml: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		if _, err = atl.UpdateInteractor(ctx, &atlas.UpdateInteractorInput{ProblemId: *pid, Interactor: interactor}); err != nil {
 			log.Printf("Unable to update problem interactor: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		log.Printf("Updated interactor")
@@ -220,7 +350,7 @@ func main() {
 				_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
-					os.Exit(-1)
+					return err
 				}
 
 				log.Printf("Updated testset %v", xts.Id)
@@ -228,7 +358,7 @@ func main() {
 				out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
-					os.Exit(-1)
+					return err
 				}
 
 				xts.Id = out.Id
@@ -253,13 +383,13 @@ func main() {
 				input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, gi+1)))
 				if err != nil {
 					log.Printf("Unable to upload test input data to E-Olymp: %v", err)
-					os.Exit(-1)
+					return err
 				}
 
 				answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)))
 				if err != nil {
 					log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
-					os.Exit(-1)
+					return err
 				}
 
 				xtt.Index = int32(ti + 1)
@@ -272,7 +402,7 @@ func main() {
 					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
 					if err != nil {
 						log.Printf("Unable to create test: %v", err)
-						os.Exit(-1)
+						return err
 					}
 
 					xtt.Id = out.Id
@@ -281,7 +411,7 @@ func main() {
 				} else {
 					if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
 						log.Printf("Unable to update test: %v", err)
-						os.Exit(-1)
+						return err
 					}
 
 					log.Printf("Updated test %v", xtt.Id)
@@ -295,7 +425,7 @@ func main() {
 		log.Printf("Deleting unused test %v", test.Id)
 		if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id}); err != nil {
 			log.Printf("Unable to delete test: %v", err)
-			os.Exit(-1)
+			return err
 		}
 	}
 
@@ -303,7 +433,7 @@ func main() {
 		log.Printf("Deleting unused testset %v", testset.Id)
 		if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id}); err != nil {
 			log.Printf("Unable to delete testset: %v", err)
-			os.Exit(-1)
+			return err
 		}
 	}
 
@@ -318,7 +448,7 @@ func main() {
 		statement, err := MakeStatement(path, &ss)
 		if err != nil {
 			log.Printf("Unable to create E-Olymp statement from specification in problem.xml: %v", err)
-			os.Exit(-1)
+			return err
 		}
 
 		xs, ok := statements[statement.GetLocale()]
@@ -339,7 +469,7 @@ func main() {
 			out, err := atl.CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
-				os.Exit(-1)
+				return err
 			}
 
 			xs.Id = out.Id
@@ -349,7 +479,7 @@ func main() {
 			_, err = atl.UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
-				os.Exit(-1)
+				return err
 			}
 
 			log.Printf("Updated statement %v", xs.Id)
@@ -361,9 +491,66 @@ func main() {
 		log.Printf("Deleting unused statement %v", statement.Id)
 		if _, err := atl.DeleteStatement(ctx, &atlas.DeleteStatementInput{StatementId: statement.Id}); err != nil {
 			log.Printf("Unable to delete statement: %v", err)
-			os.Exit(-1)
+			return err
 		}
 	}
+
+	// get all solutions
+	for _, ss := range spec.Solutions {
+		if ss.Type != "application/x-tex" {
+			continue
+		}
+
+		log.Printf("Processing solution in %#v", ss.Language)
+
+		solution, err := MakeSolution(path, &ss)
+		if err != nil {
+			log.Printf("Unable to create E-Olymp solution from specification in problem.xml: %v", err)
+			return err
+		}
+
+		xs, ok := solutions[solution.GetLocale()]
+		if !ok {
+			xs = solution
+		} else {
+			xs.Locale = solution.Locale
+			xs.Content = solution.Content
+			xs.Format = solution.Format
+		}
+
+		delete(solutions, solution.GetLocale())
+
+		if xs.Id == "" {
+			out, err := atl.CreateSolution(ctx, &atlas.CreateSolutionInput{ProblemId: *pid, Solution: xs})
+			if err != nil {
+				log.Printf("Unable to create solution: %v", err)
+				return err
+			}
+
+			xs.Id = out.SolutionId
+
+			log.Printf("Created solution %v", xs.Id)
+		} else {
+			_, err = atl.UpdateSolution(ctx, &atlas.UpdateSolutionInput{SolutionId: xs.Id, Solution: xs})
+			if err != nil {
+				log.Printf("Unable to create solution: %v", err)
+				return err
+			}
+
+			log.Printf("Updated solution %v", xs.Id)
+		}
+	}
+
+	// remove unused objects
+	for _, solution := range solutions {
+		log.Printf("Deleting unused solution %v", solution.Id)
+		if _, err := atl.DeleteSolution(ctx, &atlas.DeleteSolutionInput{SolutionId: solution.Id}); err != nil {
+			log.Printf("Unable to delete solution: %v", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func MakeObject(path string) (key string, err error) {
@@ -532,6 +719,44 @@ func MakeStatement(path string, statement *SpecificationStatement) (*atlas.State
 }
 
 func MakeStatementLocale(lang string) (string, error) {
+	switch lang {
+	case "ukrainian", "russian", "english":
+		return lang[:2], nil
+	default:
+		return lang, fmt.Errorf("unknown language %#v", lang)
+	}
+}
+
+func MakeSolution(path string, solution *SpecificationSolution) (*atlas.Solution, error) {
+	locale, err := MakeSolutionLocale(solution.Language)
+	if err != nil {
+		return nil, err
+	}
+
+	propdata, err := ioutil.ReadFile(filepath.Join(path, filepath.Dir(solution.Path), "problem-properties.json"))
+	if err != nil {
+		return nil, err
+	}
+
+	props := PolygonProblemProperties{}
+
+	if err := json.Unmarshal(propdata, &props); err != nil {
+		return nil, fmt.Errorf("unable to unmrashal problem-properties.json: %w", err)
+	}
+
+	parts := []string{props.Solution}
+	if props.Input != "" {
+		parts = append(parts, fmt.Sprintf("\\InputFile\n\n%v", props.Input))
+	}
+
+	return &atlas.Solution{
+		Locale:  locale,
+		Content: props.Solution,
+		Format:  atlas.Solution_TEX,
+	}, nil
+}
+
+func MakeSolutionLocale(lang string) (string, error) {
 	switch lang {
 	case "ukrainian", "russian", "english":
 		return lang[:2], nil
