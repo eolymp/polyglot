@@ -11,6 +11,7 @@ go run ./cmd/eolymp-polyglot ip ~/a/b/problem
 Or you can directly download it from polygon
 
 ```
-EOLYMP_USERNAME=[username] EOLYMP_PASSWORD=[password] POLYGON_LOGIN=[username] POLYGON_PASSWORD=[password] \
+EOLYMP_USERNAME=[username] EOLYMP_PASSWORD=[password] \
+POLYGON_LOGIN=[username] POLYGON_PASSWORD=[password] \
 go run ./cmd/eolymp-polyglot dp https://polygon.codeforces.com/aaaaaa/tsypko/problem
 ```
