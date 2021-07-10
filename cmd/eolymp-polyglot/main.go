@@ -811,7 +811,6 @@ func MakeSolutionLocale(lang string) (string, error) {
 
 func FindFilesWithExtension(path string, exts []string) []string {
 	var files []string
-	println(path)
 	filepath.Walk(path, func(path string, f os.FileInfo, _ error) error {
 		for _, ext := range exts {
 			r, err := regexp.Match(ext, []byte(f.Name()))
