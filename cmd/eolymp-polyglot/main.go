@@ -11,6 +11,8 @@ import (
 	"github.com/eolymp/contracts/go/eolymp/atlas"
 	"github.com/eolymp/contracts/go/eolymp/executor"
 	"github.com/eolymp/contracts/go/eolymp/keeper"
+	"github.com/eolymp/contracts/go/eolymp/typewriter"
+	"github.com/eolymp/contracts/go/eolymp/wellknown"
 	"github.com/eolymp/go-packages/env"
 	"github.com/eolymp/go-packages/httpx"
 	"github.com/eolymp/go-packages/oauth"
@@ -22,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -32,6 +35,7 @@ const PolygonPassword = "POLYGON_PASSWORD"
 
 var client httpx.Client
 var atl *atlas.AtlasService
+var tw *typewriter.TypewriterService
 
 func main() {
 
@@ -45,6 +49,8 @@ func main() {
 	)
 
 	atl = atlas.NewAtlas(client)
+
+	tw = typewriter.NewTypewriter(client)
 
 	pid := flag.String("id", "", "Problem ID")
 	flag.Parse()
@@ -221,7 +227,14 @@ func ImportProblem(path string, pid *string) error {
 			statements[s.GetLocale()] = s
 		}
 
-		solout, err := atl.ListSolutions(ctx, &atlas.ListSolutionsInput{ProblemId: *pid})
+		eq := wellknown.ExpressionID{
+			Is:    wellknown.ExpressionID_EQUAL,
+			Value: *pid,
+		}
+		var filters []*wellknown.ExpressionID
+		filters = append(filters, &eq)
+		input := &atlas.ListSolutionsInput{Filters: &atlas.ListSolutionsInput_Filter{ProblemId: filters}}
+		solout, err := atl.ListSolutions(ctx, input)
 		if err != nil {
 			log.Printf("Unable to list problem solutions in Atlas: %v", err)
 			return err
@@ -259,15 +272,15 @@ func ImportProblem(path string, pid *string) error {
 	}
 
 	templateLanguages := map[string][]string{
-		"files/template_cpp.cpp":		{"gpp"},
-		"files/template_java.java":		{"java"},
-		"files/template_pas.pas":		{"fpc"},
-		"files/template_py.py":			{"pypy", "python"},
+		"files/template_cpp.cpp":   {"gpp"},
+		"files/template_java.java": {"java"},
+		"files/template_pas.pas":   {"fpc"},
+		"files/template_py.py":     {"pypy", "python"},
 	}
 
 	templates, err := atl.ListCodeTemplates(ctx, &atlas.ListCodeTemplatesInput{ProblemId: *pid})
 
-	for _, template := range templates.GetItems(){
+	for _, template := range templates.GetItems() {
 		atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
 	}
 
@@ -469,7 +482,7 @@ func ImportProblem(path string, pid *string) error {
 
 		log.Printf("Processing statement in %#v", ss.Language)
 
-		statement, err := MakeStatement(path, &ss)
+		statement, err := MakeStatement(path, &ss, ctx)
 		if err != nil {
 			log.Printf("Unable to create E-Olymp statement from specification in problem.xml: %v", err)
 			return err
@@ -695,7 +708,7 @@ func MakeInteractor(path string, spec *Specification) (*executor.Interactor, err
 	return nil, errors.New("interactor configuration is not supported")
 }
 
-func MakeStatement(path string, statement *SpecificationStatement) (*atlas.Statement, error) {
+func MakeStatement(path string, statement *SpecificationStatement, ctx context.Context) (*atlas.Statement, error) {
 	locale, err := MakeStatementLocale(statement.Language)
 	if err != nil {
 		return nil, err
@@ -733,10 +746,17 @@ func MakeStatement(path string, statement *SpecificationStatement) (*atlas.State
 		parts = append(parts, fmt.Sprintf("\\Scoring\n\n%v", props.Scoring))
 	}
 
+	content := strings.Join(parts, "\n\n")
+
+	content, err = UpdateContentWithPictures(ctx, content, path+"/statements/"+statement.Language+"/")
+	if err != nil {
+		return nil, err
+	}
+
 	return &atlas.Statement{
 		Locale:  locale,
 		Title:   props.Name,
-		Content: strings.Join(parts, "\n\n"),
+		Content: content,
 		Format:  atlas.Statement_TEX,
 		Author:  props.AuthorName,
 	}, nil
@@ -787,4 +807,40 @@ func MakeSolutionLocale(lang string) (string, error) {
 	default:
 		return lang, fmt.Errorf("unknown language %#v", lang)
 	}
+}
+
+func FindFilesWithExtension(path string, exts []string) []string {
+	var files []string
+	println(path)
+	filepath.Walk(path, func(path string, f os.FileInfo, _ error) error {
+		for _, ext := range exts {
+			r, err := regexp.Match(ext, []byte(f.Name()))
+			if err == nil && r {
+				files = append(files, f.Name())
+			}
+		}
+		return nil
+	})
+	return files
+}
+
+func UpdateContentWithPictures(ctx context.Context, content, source string) (string, error) {
+	exts := []string{".png", ".jpeg", ".jpg", ".eps"}
+	files := FindFilesWithExtension(source, exts)
+	for _, file := range files {
+		if strings.Contains(content, file) {
+			data, err := ioutil.ReadFile(source + file)
+			if err != nil {
+				log.Println("Failed to read file " + file)
+				return "", err
+			}
+			output, err := tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: file, Data: data})
+			if err != nil {
+				log.Println("Error while uploading asset")
+				return "", err
+			}
+			content = strings.ReplaceAll(content, file, output.Link)
+		}
+	}
+	return content, nil
 }
