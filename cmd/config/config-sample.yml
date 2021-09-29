@@ -1,0 +1,8 @@
+eolymp:
+  apiurl: "https://api.e-olymp.com"
+  username: ""
+  password: ""
+polygon:
+  login: ""
+  password: ""
+source: ""

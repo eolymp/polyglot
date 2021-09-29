@@ -13,10 +13,11 @@ import (
 	"github.com/eolymp/contracts/go/eolymp/keeper"
 	"github.com/eolymp/contracts/go/eolymp/typewriter"
 	"github.com/eolymp/contracts/go/eolymp/wellknown"
-	"github.com/eolymp/go-packages/env"
 	"github.com/eolymp/go-packages/httpx"
 	"github.com/eolymp/go-packages/oauth"
+	c "github.com/eolymp/polyglot/cmd/config"
 	"github.com/mholt/archiver"
+	"github.com/spf13/viper"
 	"io"
 	"io/ioutil"
 	"log"
@@ -30,21 +31,34 @@ import (
 )
 
 const DownloadsDir = "downloads"
-const PolygonLogin = "POLYGON_LOGIN"
-const PolygonPassword = "POLYGON_PASSWORD"
 
 var client httpx.Client
 var atl *atlas.AtlasService
 var tw *typewriter.TypewriterService
+var conf c.Configuration
 
 func main() {
+
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./cmd/config")
+	viper.AutomaticEnv()
+	viper.SetConfigType("yml")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Error reading config file, %s", err)
+	}
+
+	err := viper.Unmarshal(&conf)
+	if err != nil {
+		log.Printf("Unable to decode into struct, %v", err)
+	}
 
 	client = httpx.NewClient(
 		&http.Client{Timeout: 30 * time.Second},
 		httpx.WithCredentials(oauth.PasswordCredentials(
-			oauth.NewClient(env.StringDefault("EOLYMP_API_URL", "https://api.e-olymp.com")),
-			env.String("EOLYMP_USERNAME"),
-			env.String("EOLYMP_PASSWORD"),
+			oauth.NewClient(conf.Eolymp.ApiUrl),
+			conf.Eolymp.Username,
+			conf.Eolymp.Password,
 		)),
 	)
 
@@ -72,21 +86,16 @@ func main() {
 
 	} else if command == "dp" {
 
-		link := flag.Arg(1)
-		if link == "" {
-			log.Println("Link argument is empty")
-			flag.Usage()
-			os.Exit(-1)
-		}
+		for i, link := 1, flag.Arg(1); link != ""; i, link = i+1, flag.Arg(i+1) {
+			path, err := DownloadProblem(link)
+			if err != nil {
+				log.Println("Failed to download problem")
+				os.Exit(-1)
+			}
 
-		path, err := DownloadProblem(link)
-		if err != nil {
-			log.Println("Failed to download problem")
-			os.Exit(-1)
-		}
-
-		if err := ImportProblem(path, pid); err != nil {
-			log.Fatal(err)
+			if err := ImportProblem(path, pid); err != nil {
+				log.Fatal(err)
+			}
 		}
 	} else {
 		log.Println("Unknown command")
@@ -96,8 +105,8 @@ func main() {
 
 func DownloadProblem(link string) (path string, err error) {
 	log.Println("Started polygon download")
-	if env.String(PolygonLogin) == "" || env.String(PolygonPassword) == "" {
-		return "", fmt.Errorf("No polygon credentials")
+	if conf.Polygon.Login == "" || conf.Polygon.Password == "" {
+		return "", fmt.Errorf("No polygon credentials.")
 	}
 	if _, err := os.Stat(DownloadsDir); os.IsNotExist(err) {
 		err = os.Mkdir(DownloadsDir, 0777)
@@ -108,7 +117,7 @@ func DownloadProblem(link string) (path string, err error) {
 	}
 	name := link[strings.LastIndex(link, "/")+1:]
 	location := DownloadsDir + "/" + name
-	if err := DownloadFileAndUnzip(link, env.String(PolygonLogin), env.String(PolygonPassword), location); err != nil {
+	if err := DownloadFileAndUnzip(link, conf.Polygon.Login, conf.Polygon.Password, location); err != nil {
 		log.Println("Failed to download from polygon")
 		return "", err
 	}
@@ -127,7 +136,7 @@ func DownloadFileAndUnzip(URL, login, password, location string) error {
 	}()
 
 	if response.StatusCode != 200 {
-		return errors.New("Non 200 status code")
+		return errors.New("Non 200 status code.")
 	}
 
 	file, err := os.Create(location + ".zip")
@@ -272,7 +281,7 @@ func ImportProblem(path string, pid *string) error {
 	}
 
 	templateLanguages := map[string][]string{
-		"files/template_cpp.cpp":   {"gpp"},
+		"files/template_cpp.cpp":   {"gpp", "cpp:17-gnu10"},
 		"files/template_java.java": {"java"},
 		"files/template_pas.pas":   {"fpc"},
 		"files/template_py.py":     {"pypy", "python"},
@@ -281,7 +290,7 @@ func ImportProblem(path string, pid *string) error {
 	templates, err := atl.ListCodeTemplates(ctx, &atlas.ListCodeTemplatesInput{ProblemId: *pid})
 
 	for _, template := range templates.GetItems() {
-		atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
+		_, _ = atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
 	}
 
 	for _, file := range spec.Files {
@@ -297,7 +306,7 @@ func ImportProblem(path string, pid *string) error {
 					os.Exit(-1)
 				}
 				template.Source = string(source)
-				atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+				_, _ = atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
 				log.Printf("Added a template for %s", lang)
 			}
 		}
@@ -351,7 +360,7 @@ func ImportProblem(path string, pid *string) error {
 		groups := testset.Groups
 		if len(groups) == 0 {
 			groups = []SpecificationGroup{
-				{FeedbackPolicy: "complete", Name: 0, Points: 0, PointsPolicy: "each-test"},
+				{FeedbackPolicy: "icpc-expanded", Name: 0, Points: 100, PointsPolicy: "each-test"},
 			}
 		}
 
@@ -368,14 +377,16 @@ func ImportProblem(path string, pid *string) error {
 			xts.MemoryLimit = uint64(testset.MemoryLimit)
 			xts.FileSizeLimit = 536870912
 
-			xts.ScoringMode = atlas.Testset_EACH
+			xts.ScoringMode = atlas.ScoringMode_EACH
 			if group.PointsPolicy == "complete-group" {
-				xts.ScoringMode = atlas.Testset_ALL
+				xts.ScoringMode = atlas.ScoringMode_ALL
 			}
 
-			xts.FeedbackPolicy = atlas.Testset_COMPLETE
+			xts.FeedbackPolicy = atlas.FeedbackPolicy_COMPLETE
 			if group.FeedbackPolicy == "icpc" {
-				xts.FeedbackPolicy = atlas.Testset_ICPC
+				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC
+			} else if group.FeedbackPolicy == "icpc-expanded" {
+				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC_EXPANDED
 			}
 
 			xts.Dependencies = nil
@@ -434,6 +445,14 @@ func ImportProblem(path string, pid *string) error {
 				xtt.Score = ts.Points
 				xtt.InputObjectId = input
 				xtt.AnswerObjectId = answer
+
+				if xts.FeedbackPolicy == atlas.FeedbackPolicy_ICPC_EXPANDED {
+					score := 100 / len(groupTests[group.Name])
+					if len(groupTests[group.Name])-ti <= 100%len(groupTests[group.Name]) {
+						score++
+					}
+					xtt.Score = float32(score)
+				}
 
 				if xtt.Id == "" {
 					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
@@ -759,6 +778,7 @@ func MakeStatement(path string, statement *SpecificationStatement, ctx context.C
 		Content: content,
 		Format:  atlas.Statement_TEX,
 		Author:  props.AuthorName,
+		Source:  conf.Source,
 	}, nil
 }
 
@@ -811,7 +831,7 @@ func MakeSolutionLocale(lang string) (string, error) {
 
 func FindFilesWithExtension(path string, exts []string) []string {
 	var files []string
-	filepath.Walk(path, func(path string, f os.FileInfo, _ error) error {
+	_ = filepath.Walk(path, func(path string, f os.FileInfo, _ error) error {
 		for _, ext := range exts {
 			r, err := regexp.Match(ext, []byte(f.Name()))
 			if err == nil && r {
