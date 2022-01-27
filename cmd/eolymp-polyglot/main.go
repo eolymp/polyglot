@@ -60,6 +60,9 @@ func main() {
 			conf.Eolymp.Username,
 			conf.Eolymp.Password,
 		)),
+		httpx.WithHeaders(map[string][]string{
+			"Space-ID": {conf.SpaceId},
+		}),
 	)
 
 	atl = atlas.NewAtlas(client)
@@ -106,7 +109,7 @@ func main() {
 func DownloadProblem(link string) (path string, err error) {
 	log.Println("Started polygon download")
 	if conf.Polygon.Login == "" || conf.Polygon.Password == "" {
-		return "", fmt.Errorf("No polygon credentials.")
+		return "", fmt.Errorf("no polygon credentials")
 	}
 	if _, err := os.Stat(DownloadsDir); os.IsNotExist(err) {
 		err = os.Mkdir(DownloadsDir, 0777)
@@ -136,7 +139,7 @@ func DownloadFileAndUnzip(URL, login, password, location string) error {
 	}()
 
 	if response.StatusCode != 200 {
-		return errors.New("Non 200 status code.")
+		return errors.New("non 200 status code")
 	}
 
 	file, err := os.Create(location + ".zip")
@@ -493,6 +496,8 @@ func ImportProblem(path string, pid *string) error {
 		}
 	}
 
+	newStatements := map[string]*atlas.Statement{}
+
 	// get all statements
 	for _, ss := range spec.Statements {
 		if ss.Type != "application/x-tex" {
@@ -506,6 +511,31 @@ func ImportProblem(path string, pid *string) error {
 			log.Printf("Unable to create E-Olymp statement from specification in problem.xml: %v", err)
 			return err
 		}
+
+		newStatements[statement.GetLocale()] = statement
+	}
+
+	var mainStatement *atlas.Statement = nil
+
+	if ukr, ok := newStatements["uk"]; ok {
+		mainStatement = ukr
+	} else if eng, ok := newStatements["en"]; ok {
+		mainStatement = eng
+	} else {
+		mainStatement, _ = newStatements["ru"]
+	}
+
+	for _, lang := range []string{"uk", "en", "ru"} {
+		if _, ok := newStatements[lang]; !ok {
+			statement := *mainStatement
+			statement.Locale = lang
+			newStatements[lang] = &statement
+		}
+	}
+
+	for _, statement := range newStatements {
+
+		log.Printf("Updating language %v", statement.Locale)
 
 		xs, ok := statements[statement.GetLocale()]
 		if !ok {
@@ -650,7 +680,7 @@ func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) 
 		return &executor.Verifier{Type: executor.Verifier_LINES}, nil
 	default:
 		mapping := map[string][]string{
-			"gpp":    {"c.gcc", "cpp.g++", "cpp.g++11", "cpp.g++14", "cpp.g++17", "cpp.ms"},
+			"gpp":    {"c.gcc", "cpp.g++", "cpp.g++11", "cpp.g++14", "cpp.g++17", "cpp.ms", "cpp.msys2-mingw64-9-g++17"},
 			"csharp": {"csharp.mono"},
 			"d":      {"d"},
 			"go":     {"go"},
@@ -784,7 +814,7 @@ func MakeStatement(path string, statement *SpecificationStatement, ctx context.C
 
 func MakeStatementLocale(lang string) (string, error) {
 	switch lang {
-	case "ukrainian", "russian", "english":
+	case "ukrainian", "russian", "english", "hungarian":
 		return lang[:2], nil
 	default:
 		return lang, fmt.Errorf("unknown language %#v", lang)

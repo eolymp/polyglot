@@ -4,6 +4,7 @@ type Configuration struct {
 	Eolymp  Eolymp
 	Polygon Polygon
 	Source  string
+	SpaceId string
 }
 
 type Eolymp struct {
