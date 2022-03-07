@@ -709,7 +709,7 @@ func MakeVerifier(path string, spec *Specification) (*executor.Verifier, error) 
 
 			return &executor.Verifier{
 				Type:   executor.Verifier_PROGRAM,
-				Source: string(data), // todo: actually read file
+				Source: string(data),
 				Lang:   lang,
 			}, nil
 		}
@@ -749,7 +749,7 @@ func MakeInteractor(path string, spec *Specification) (*executor.Interactor, err
 		}
 
 		return &executor.Interactor{
-			Source: string(data), // todo: actually read file
+			Source: string(data),
 			Lang:   lang,
 		}, nil
 	}
@@ -874,7 +874,7 @@ func FindFilesWithExtension(path string, exts []string) []string {
 }
 
 func UpdateContentWithPictures(ctx context.Context, content, source string) (string, error) {
-	exts := []string{".png", ".jpeg", ".jpg", ".eps"}
+	exts := []string{".png", ".jpeg", ".jpg", ".eps"} // todo: these extensions suppose to be regexps according to implementation of FindFilesWithExtension (either regexp or implementation must be changed)
 	files := FindFilesWithExtension(source, exts)
 	for _, file := range files {
 		if strings.Contains(content, file) {
