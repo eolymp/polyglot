@@ -386,7 +386,7 @@ func ImportProblem(path string, pid *string) error {
 			}
 
 			xts.FeedbackPolicy = atlas.FeedbackPolicy_COMPLETE
-			if group.FeedbackPolicy == "icpc" {
+			if group.FeedbackPolicy == "icpc" || group.FeedbackPolicy == "points" {
 				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC
 			} else if group.FeedbackPolicy == "icpc-expanded" {
 				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC_EXPANDED
@@ -398,7 +398,7 @@ func ImportProblem(path string, pid *string) error {
 			}
 
 			if xts.Id != "" {
-				_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, Testset: xts})
+				_, err = UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
 					return err
@@ -406,7 +406,7 @@ func ImportProblem(path string, pid *string) error {
 
 				log.Printf("Updated testset %v", xts.Id)
 			} else {
-				out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
+				out, err := CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
 					return err
@@ -458,7 +458,7 @@ func ImportProblem(path string, pid *string) error {
 				}
 
 				if xtt.Id == "" {
-					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
+					out, err := CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
 					if err != nil {
 						log.Printf("Unable to create test: %v", err)
 						return err
@@ -468,7 +468,7 @@ func ImportProblem(path string, pid *string) error {
 
 					log.Printf("Created test %v", xtt.Id)
 				} else {
-					if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
+					if _, err := UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
 						log.Printf("Unable to update test: %v", err)
 						return err
 					}
@@ -482,7 +482,7 @@ func ImportProblem(path string, pid *string) error {
 	// remove unused objects
 	for _, test := range tests {
 		log.Printf("Deleting unused test %v", test.Id)
-		if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id}); err != nil {
+		if _, err := DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id}); err != nil {
 			log.Printf("Unable to delete test: %v", err)
 			return err
 		}
@@ -552,7 +552,7 @@ func ImportProblem(path string, pid *string) error {
 		delete(statements, statement.GetLocale())
 
 		if xs.Id == "" {
-			out, err := atl.CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
+			out, err := CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
 				return err
@@ -562,7 +562,7 @@ func ImportProblem(path string, pid *string) error {
 
 			log.Printf("Created statement %v", xs.Id)
 		} else {
-			_, err = atl.UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs})
+			_, err = UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
 				return err
@@ -636,7 +636,94 @@ func ImportProblem(path string, pid *string) error {
 		}
 	}
 
+	log.Printf("Finished")
+
 	return nil
+}
+
+
+func CreateTestset(ctx context.Context, input *atlas.CreateTestsetInput) (*atlas.CreateTestsetOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.CreateTestset(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while creating testset: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.CreateTestset(ctx, input)
+}
+
+func UpdateTestset(ctx context.Context, input *atlas.UpdateTestsetInput) (*atlas.UpdateTestsetOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.UpdateTestset(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while updating testset: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.UpdateTestset(ctx, input)
+}
+
+func CreateTest(ctx context.Context, input *atlas.CreateTestInput) (*atlas.CreateTestOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.CreateTest(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while creating test: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.CreateTest(ctx, input)
+}
+
+func UpdateTest(ctx context.Context, input *atlas.UpdateTestInput) (*atlas.UpdateTestOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.UpdateTest(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while updating test: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.UpdateTest(ctx, input)
+}
+
+func DeleteTest(ctx context.Context, input *atlas.DeleteTestInput) (*atlas.DeleteTestOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.DeleteTest(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while deleting test: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.DeleteTest(ctx, input)
+}
+
+func CreateStatement(ctx context.Context, input *atlas.CreateStatementInput) (*atlas.CreateStatementOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.CreateStatement(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while creating statement: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.CreateStatement(ctx, input)
+}
+
+func UpdateStatement(ctx context.Context, input *atlas.UpdateStatementInput) (*atlas.UpdateStatementOutput, error) {
+	for i := 0; i < 10; i++ {
+		out, err := atl.UpdateStatement(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while updating statement: %v", err)
+		time.Sleep(time.Second)
+	}
+	return atl.UpdateStatement(ctx, input)
 }
 
 func MakeObject(path string) (key string, err error) {
@@ -655,6 +742,7 @@ func MakeObject(path string) (key string, err error) {
 		}
 
 		log.Printf("Error while uploading file: %v", err)
+		time.Sleep(time.Second)
 	}
 
 	return "", err
@@ -883,7 +971,14 @@ func UpdateContentWithPictures(ctx context.Context, content, source string) (str
 				log.Println("Failed to read file " + file)
 				return "", err
 			}
-			output, err := tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: file, Data: data})
+			var output *typewriter.UploadAssetOutput
+			for i := 0; i < 10; i++ {
+				output, err = tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: file, Data: data})
+				if err == nil {
+					break
+				}
+				log.Println("Error while uploading asset")
+			}
 			if err != nil {
 				log.Println("Error while uploading asset")
 				return "", err
