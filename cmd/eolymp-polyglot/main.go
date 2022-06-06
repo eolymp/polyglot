@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"compress/flate"
 	"context"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/antchfx/xmlquery"
 	"github.com/eolymp/contracts/go/eolymp/atlas"
 	"github.com/eolymp/contracts/go/eolymp/executor"
 	"github.com/eolymp/contracts/go/eolymp/keeper"
@@ -25,12 +27,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const DownloadsDir = "downloads"
+const RepeatNumber = 10
+const TimeSleep = time.Minute
 
 var client httpx.Client
 var atl *atlas.AtlasService
@@ -54,7 +59,7 @@ func main() {
 	}
 
 	client = httpx.NewClient(
-		&http.Client{Timeout: 30 * time.Second},
+		&http.Client{Timeout: 300 * time.Second},
 		httpx.WithCredentials(oauth.PasswordCredentials(
 			oauth.NewClient(conf.Eolymp.ApiUrl),
 			conf.Eolymp.Username,
@@ -74,29 +79,31 @@ func main() {
 
 	command := flag.Arg(0)
 
-	if command == "ip" {
-
-		path := flag.Arg(1)
-		if path == "" {
+	if command == "ic" {
+		contestId := flag.Arg(1)
+		if contestId == "" {
 			log.Println("Path argument is empty")
 			flag.Usage()
 			os.Exit(-1)
 		}
-
-		if err := ImportProblem(path, pid); err != nil {
-			log.Fatal(err)
+		ImportContest(contestId)
+	} else if command == "uc" {
+		contestId := flag.Arg(1)
+		if contestId == "" {
+			log.Println("Path argument is empty")
+			flag.Usage()
+			os.Exit(-1)
 		}
-
-	} else if command == "dp" {
-
-		for i, link := 1, flag.Arg(1); link != ""; i, link = i+1, flag.Arg(i+1) {
-			path, err := DownloadProblem(link)
-			if err != nil {
-				log.Println("Failed to download problem")
-				os.Exit(-1)
-			}
-
+		UpdateContest(contestId)
+	} else if command == "ip" {
+		for i, path := 1, flag.Arg(1); path != ""; i, path = i+1, flag.Arg(i+1) {
 			if err := ImportProblem(path, pid); err != nil {
+				log.Fatal(err)
+			}
+		}
+	} else if command == "dp" {
+		for i, link := 1, flag.Arg(1); link != ""; i, link = i+1, flag.Arg(i+1) {
+			if err := DownloadAndImportProblem(link, pid); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -104,6 +111,51 @@ func main() {
 		log.Println("Unknown command")
 	}
 
+}
+
+func ImportContest(contestId string) {
+	data := GetData()
+	problems := GetProblems(contestId)
+	log.Println(problems)
+	var problemList []map[string]interface{}
+	ctx := context.Background()
+	for _, problem := range problems {
+		pid, _ := CreateProblem(ctx)
+		problemList = append(problemList, map[string]interface{}{"id": pid, "link": problem})
+	}
+	data[contestId] = problemList
+	SaveData(data)
+	log.Println(data)
+	UpdateContest(contestId)
+}
+
+func UpdateContest(contestId string) {
+	data := GetData()
+	t := reflect.ValueOf(data[contestId])
+	for i := 0; i < t.Len(); i++ {
+		m := t.Index(i).Elem()
+		g := make(map[string]string)
+		iter := m.MapRange()
+		for iter.Next() {
+			g[iter.Key().String()] = iter.Value().Elem().String()
+		}
+		pid := g["id"]
+		log.Println(pid, g["link"])
+
+		if err := DownloadAndImportProblem(g["link"], &pid); err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func DownloadAndImportProblem(link string, pid *string) error {
+	path, err := DownloadProblem(link)
+	if err != nil {
+		log.Println("Failed to download problem")
+		os.Exit(-1)
+	}
+
+	return ImportProblem(path, pid)
 }
 
 func DownloadProblem(link string) (path string, err error) {
@@ -180,6 +232,19 @@ func DownloadFileAndUnzip(URL, login, password, location string) error {
 	return nil
 }
 
+func CreateProblem(ctx context.Context) (string, error) {
+	for i := 0; i < RepeatNumber; i++ {
+		pout, err := atl.CreateProblem(ctx, &atlas.CreateProblemInput{Problem: &atlas.Problem{}})
+		if err == nil {
+			log.Printf("Problem created with ID %#v", pout.ProblemId)
+			return pout.ProblemId, nil
+		}
+		log.Printf("Unable to create problem: %v", err)
+		time.Sleep(TimeSleep)
+	}
+	return "", nil
+}
+
 func ImportProblem(path string, pid *string) error {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -217,15 +282,11 @@ func ImportProblem(path string, pid *string) error {
 
 	// create problem
 	if *pid == "" {
-		pout, err := atl.CreateProblem(ctx, &atlas.CreateProblemInput{Problem: &atlas.Problem{}})
+		*pid, err = CreateProblem(ctx)
 		if err != nil {
 			log.Printf("Unable to create problem: %v", err)
 			return err
 		}
-
-		pid = &pout.ProblemId
-
-		log.Printf("Problem created with ID %#v", *pid)
 	} else {
 		stout, err := atl.ListStatements(ctx, &atlas.ListStatementsInput{ProblemId: *pid})
 		if err != nil {
@@ -418,64 +479,66 @@ func ImportProblem(path string, pid *string) error {
 			}
 
 			// upload tests
-			for ti, ts := range groupTests[group.Name] {
-				xtt, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
-				if !ok {
-					xtt = &atlas.Test{}
-				}
 
-				delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
-
-				// index in the test list from specification
-				gi := testIndex[fmt.Sprint(xts.Index, "/", int32(ti+1))]
-
-				log.Printf("Processing %v test %v (Global Index: %v, ID: %#v) in testset %v (example: %v)", ts.Method, ti, gi, xtt.Id, xts.Index, ts.Sample)
-
-				input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, gi+1)))
-				if err != nil {
-					log.Printf("Unable to upload test input data to E-Olymp: %v", err)
-					return err
-				}
-
-				answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)))
-				if err != nil {
-					log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
-					return err
-				}
-
-				xtt.Index = int32(ti + 1)
-				xtt.Example = ts.Sample
-				xtt.Score = ts.Points
-				xtt.InputObjectId = input
-				xtt.AnswerObjectId = answer
-
-				if xts.FeedbackPolicy == atlas.FeedbackPolicy_ICPC_EXPANDED {
-					score := 100 / len(groupTests[group.Name])
-					if len(groupTests[group.Name])-ti <= 100%len(groupTests[group.Name]) {
-						score++
+				for ti, ts := range groupTests[group.Name] {
+					xtt, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+					if !ok {
+						xtt = &atlas.Test{}
 					}
-					xtt.Score = float32(score)
-				}
 
-				if xtt.Id == "" {
-					out, err := CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
+					delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
+
+					// index in the test list from specification
+					gi := testIndex[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+
+					log.Printf("Processing %v test %v (Global Index: %v, ID: %#v) in testset %v (example: %v)", ts.Method, ti, gi, xtt.Id, xts.Index, ts.Sample)
+
+					input, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.InputPathPattern, gi+1)))
 					if err != nil {
-						log.Printf("Unable to create test: %v", err)
+						log.Printf("Unable to upload test input data to E-Olymp: %v", err)
 						return err
 					}
 
-					xtt.Id = out.Id
-
-					log.Printf("Created test %v", xtt.Id)
-				} else {
-					if _, err := UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
-						log.Printf("Unable to update test: %v", err)
+					answer, err := MakeObject(filepath.Join(path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)))
+					if err != nil {
+						log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
 						return err
 					}
 
-					log.Printf("Updated test %v", xtt.Id)
+					xtt.Index = int32(ti + 1)
+					xtt.Example = ts.Sample
+					xtt.Score = ts.Points
+					xtt.InputObjectId = input
+					xtt.AnswerObjectId = answer
+
+					if xts.FeedbackPolicy == atlas.FeedbackPolicy_ICPC_EXPANDED {
+						score := 100 / len(groupTests[group.Name])
+						if len(groupTests[group.Name])-ti <= 100%len(groupTests[group.Name]) {
+							score++
+						}
+						xtt.Score = float32(score)
+					}
+
+					if xtt.Id == "" {
+						out, err := CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
+						if err != nil {
+							log.Printf("Unable to create test: %v", err)
+							return err
+						}
+
+						xtt.Id = out.Id
+
+						log.Printf("Created test %v", xtt.Id)
+					} else {
+						if _, err := UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
+							log.Printf("Unable to update test: %v", err)
+							return err
+						}
+
+						log.Printf("Updated test %v", xtt.Id)
+					}
 				}
-			}
+
 		}
 	}
 
@@ -641,87 +704,86 @@ func ImportProblem(path string, pid *string) error {
 	return nil
 }
 
-
 func CreateTestset(ctx context.Context, input *atlas.CreateTestsetInput) (*atlas.CreateTestsetOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.CreateTestset(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while creating testset: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.CreateTestset(ctx, input)
 }
 
 func UpdateTestset(ctx context.Context, input *atlas.UpdateTestsetInput) (*atlas.UpdateTestsetOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.UpdateTestset(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while updating testset: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.UpdateTestset(ctx, input)
 }
 
 func CreateTest(ctx context.Context, input *atlas.CreateTestInput) (*atlas.CreateTestOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.CreateTest(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while creating test: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.CreateTest(ctx, input)
 }
 
 func UpdateTest(ctx context.Context, input *atlas.UpdateTestInput) (*atlas.UpdateTestOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.UpdateTest(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while updating test: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.UpdateTest(ctx, input)
 }
 
 func DeleteTest(ctx context.Context, input *atlas.DeleteTestInput) (*atlas.DeleteTestOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.DeleteTest(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while deleting test: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.DeleteTest(ctx, input)
 }
 
 func CreateStatement(ctx context.Context, input *atlas.CreateStatementInput) (*atlas.CreateStatementOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.CreateStatement(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while creating statement: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.CreateStatement(ctx, input)
 }
 
 func UpdateStatement(ctx context.Context, input *atlas.UpdateStatementInput) (*atlas.UpdateStatementOutput, error) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err := atl.UpdateStatement(ctx, input)
 		if err == nil {
 			return out, nil
 		}
 		log.Printf("Error while updating statement: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 	return atl.UpdateStatement(ctx, input)
 }
@@ -735,14 +797,14 @@ func MakeObject(path string) (key string, err error) {
 	}
 
 	var out *keeper.CreateObjectOutput
-	for i := 0; i < 10; i++ {
+	for i := 0; i < RepeatNumber; i++ {
 		out, err = kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
 		if err == nil {
 			return out.Key, nil
 		}
 
 		log.Printf("Error while uploading file: %v", err)
-		time.Sleep(time.Second)
+		time.Sleep(TimeSleep)
 	}
 
 	return "", err
@@ -972,7 +1034,7 @@ func UpdateContentWithPictures(ctx context.Context, content, source string) (str
 				return "", err
 			}
 			var output *typewriter.UploadAssetOutput
-			for i := 0; i < 10; i++ {
+			for i := 0; i < RepeatNumber; i++ {
 				output, err = tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: file, Data: data})
 				if err == nil {
 					break
@@ -987,4 +1049,39 @@ func UpdateContentWithPictures(ctx context.Context, content, source string) (str
 		}
 	}
 	return content, nil
+}
+
+func SaveData(data map[string]interface{}) {
+	json, _ := json.Marshal(data)
+	ioutil.WriteFile("data.json", json, 0644)
+}
+
+func GetData() map[string]interface{} {
+	jsonFile, _ := os.Open("data.json")
+	defer jsonFile.Close()
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	var result map[string]interface{}
+	json.Unmarshal(byteValue, &result)
+	return result
+}
+
+func GetProblems(contestId string) []string {
+	response, err := http.PostForm("https://polygon.codeforces.com/c/" + contestId + "/contest.xml", url.Values{"login": {conf.Polygon.Login}, "password": {conf.Polygon.Password}, "type": {"windows"}})
+	if err != nil {
+		return nil
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(response.Body)
+	doc, err := xmlquery.Parse(buf)
+	if err != nil {
+		panic(err)
+	}
+	var result []string
+	for _, n := range xmlquery.Find(doc, "//contest/problems/problem/@url") {
+		result = append(result, n.InnerText())
+	}
+	return result
 }

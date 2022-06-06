@@ -3,9 +3,10 @@ module github.com/eolymp/polyglot
 go 1.15
 
 require (
+	github.com/antchfx/xmlquery v1.3.11
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/eolymp/contracts v0.0.0-20211217223909-064ca9072057
+	github.com/eolymp/contracts v0.0.0-20220515154920-d9f3ce671f18
 	github.com/eolymp/go-packages v0.0.0-20211113124756-6b4fcfcf0835
 	github.com/eolymp/go-proto-http v0.0.0-20201210174404-28481602bedd // indirect
 	github.com/frankban/quicktest v1.13.1 // indirect
@@ -21,6 +22,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/spf13/viper v1.9.0
 	github.com/ulikunitz/xz v0.5.10 // indirect
+	github.com/variety-jones/polygon v1.0.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/text v0.3.7 // indirect
