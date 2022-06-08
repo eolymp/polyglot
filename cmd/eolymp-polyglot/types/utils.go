@@ -75,6 +75,10 @@ func MakeObject(path string, kpr *keeper.KeeperService) (key string, err error) 
 		return "", err
 	}
 
+	return MakeObjectByData(data, kpr)
+}
+
+func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (key string, err error) {
 	var out *keeper.CreateObjectOutput
 	for i := 0; i < RepeatNumber; i++ {
 		out, err = kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
@@ -87,4 +91,16 @@ func MakeObject(path string, kpr *keeper.KeeperService) (key string, err error) 
 	}
 
 	return "", err
+}
+
+func RemoveSpaces(data string) string {
+	l := 0
+	r := len(data)
+	for l < r && (data[l] == ' ' || data[l] == '\n') {
+		l++
+	}
+	for l < r && (data[r-1] == ' ' || data[r-1] == '\n') {
+		r--
+	}
+	return data[l:r]
 }
