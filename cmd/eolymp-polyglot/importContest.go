@@ -20,7 +20,10 @@ func ImportContest(contestId string) {
 	var problemList []map[string]interface{}
 	ctx := context.Background()
 	for _, problem := range problems {
-		pid, _ := CreateProblem(ctx)
+		pid, err := CreateProblem(ctx)
+		if err != nil {
+			panic(err)
+		}
 		problemList = append(problemList, map[string]interface{}{"id": pid, "link": problem})
 	}
 	data[contestId] = problemList
@@ -49,14 +52,23 @@ func UpdateContest(contestId string) {
 }
 
 func SaveData(data map[string]interface{}) {
-	json, _ := json.Marshal(data)
+	json, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
 	ioutil.WriteFile("data.json", json, 0644)
 }
 
 func GetData() map[string]interface{} {
-	jsonFile, _ := os.Open("data.json")
+	jsonFile, err := os.Open("data.json")
+	if err != nil {
+		panic(err)
+	}
 	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		panic(err)
+	}
 	var result map[string]interface{}
 	json.Unmarshal(byteValue, &result)
 	return result
