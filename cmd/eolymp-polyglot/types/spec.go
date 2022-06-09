@@ -1,4 +1,4 @@
-package main
+package types
 
 type Specification struct {
 	Names      []SpecificationName      `xml:"names>name"`
