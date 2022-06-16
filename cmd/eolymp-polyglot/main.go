@@ -88,6 +88,12 @@ func main() {
 				log.Fatal(err)
 			}
 		}
+	case "up":
+		for i, link := 1, flag.Arg(1); link != ""; i, link = i+1, flag.Arg(i+1) {
+			if err := UpdateProblem(link); err != nil {
+				log.Fatal(err)
+			}
+		}
 	default:
 		log.Fatal("no command found")
 	}

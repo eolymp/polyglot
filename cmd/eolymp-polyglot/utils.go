@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/eolymp/contracts/go/eolymp/atlas"
+	"io/ioutil"
 	"log"
+	"os"
 	"time"
 )
 
@@ -105,4 +108,28 @@ func UpdateStatement(ctx context.Context, input *atlas.UpdateStatementInput) (*a
 		time.Sleep(TimeSleep)
 	}
 	return atl.UpdateStatement(ctx, input)
+}
+
+func SaveData(data map[string]interface{}) {
+	json, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	ioutil.WriteFile("data.json", json, 0644)
+}
+
+func GetData() map[string]interface{} {
+	// TODO create file if does not exist
+	jsonFile, err := os.Open("data.json")
+	if err != nil {
+		panic(err)
+	}
+	defer jsonFile.Close()
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		panic(err)
+	}
+	var result map[string]interface{}
+	json.Unmarshal(byteValue, &result)
+	return result
 }

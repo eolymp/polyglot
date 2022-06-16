@@ -3,13 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"github.com/antchfx/xmlquery"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 )
 
@@ -49,29 +46,6 @@ func UpdateContest(contestId string) {
 			log.Println(err)
 		}
 	}
-}
-
-func SaveData(data map[string]interface{}) {
-	json, err := json.Marshal(data)
-	if err != nil {
-		panic(err)
-	}
-	ioutil.WriteFile("data.json", json, 0644)
-}
-
-func GetData() map[string]interface{} {
-	jsonFile, err := os.Open("data.json")
-	if err != nil {
-		panic(err)
-	}
-	defer jsonFile.Close()
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		panic(err)
-	}
-	var result map[string]interface{}
-	json.Unmarshal(byteValue, &result)
-	return result
 }
 
 func GetProblems(contestId string) []string {
