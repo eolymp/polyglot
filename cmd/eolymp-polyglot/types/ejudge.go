@@ -30,7 +30,7 @@ func CreateEjudgeImporter(path string) (*EjudgeImporter, error) {
 	}
 	for _, statement := range files {
 		if filepath.Ext(statement.Name()) == ".tex" {
-			if strings.Contains(statement.Name(), "en") {
+			if strings.Contains(statement.Name(), "en") && !strings.Contains(statement.Name(), "tutorial") {
 				importer.mainStatement = statement.Name()
 			}
 		}
