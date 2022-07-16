@@ -11,7 +11,7 @@ import (
 )
 
 const RepeatNumber = 10
-const TimeSleep = time.Minute
+const TimeSleep = 10 * time.Second
 
 func CreateProblem(ctx context.Context) (string, error) {
 	for i := 0; i < RepeatNumber; i++ {

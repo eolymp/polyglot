@@ -8,7 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"time"
 )
+
+const RepeatNumberProblemUploads = 5
+const TimeToSleep = 5 * time.Minute
 
 func ImportContest(contestId string) {
 	data := GetData()
@@ -41,9 +45,13 @@ func UpdateContest(contestId string) {
 		}
 		pid := g["id"]
 		log.Println(pid, g["link"])
-
-		if err := DownloadAndImportProblem(g["link"], &pid); err != nil {
-			log.Println(err)
+		for j := 0; j < RepeatNumberProblemUploads; j++ {
+			if err := DownloadAndImportProblem(g["link"], &pid); err != nil {
+				log.Println(err)
+				time.Sleep(TimeToSleep)
+			} else {
+				break
+			}
 		}
 	}
 }

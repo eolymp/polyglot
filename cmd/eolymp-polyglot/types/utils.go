@@ -15,10 +15,10 @@ import (
 )
 
 const RepeatNumber = 10
-const TimeSleep = time.Minute
+const TimeSleep = 10 * time.Second
 
 func UpdateContentWithPictures(ctx context.Context, tw *typewriter.TypewriterService, content, source string) (string, error) {
-	exts := []string{".png", ".jpeg", ".jpg", ".eps"}
+	exts := []string{".png", ".jpeg", ".jpg"}
 	files := FindFilesWithExtension(source, exts)
 	for _, file := range files {
 		if strings.Contains(content, file) {
