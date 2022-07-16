@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/eolymp/contracts/go/eolymp/atlas"
+	"io/ioutil"
 	"log"
+	"os"
 	"time"
 )
 
 const RepeatNumber = 10
-const TimeSleep = time.Minute
+const TimeSleep = 10 * time.Second
 
 func CreateProblem(ctx context.Context) (string, error) {
 	for i := 0; i < RepeatNumber; i++ {
@@ -105,4 +108,28 @@ func UpdateStatement(ctx context.Context, input *atlas.UpdateStatementInput) (*a
 		time.Sleep(TimeSleep)
 	}
 	return atl.UpdateStatement(ctx, input)
+}
+
+func SaveData(data map[string]interface{}) {
+	json, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	ioutil.WriteFile("data.json", json, 0644)
+}
+
+func GetData() map[string]interface{} {
+	// TODO create file if does not exist
+	jsonFile, err := os.Open("data.json")
+	if err != nil {
+		panic(err)
+	}
+	defer jsonFile.Close()
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		panic(err)
+	}
+	var result map[string]interface{}
+	json.Unmarshal(byteValue, &result)
+	return result
 }

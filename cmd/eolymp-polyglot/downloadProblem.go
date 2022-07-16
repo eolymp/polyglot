@@ -15,6 +15,16 @@ import (
 
 const DownloadsDir = "downloads"
 
+func UpdateProblem(link string) error {
+	data := GetData()
+	inter, ok := data[link]
+	if !ok {
+		return errors.New("not found link in data")
+	}
+	pid := fmt.Sprintf("%v", inter)
+	return DownloadAndImportProblem(link, &pid)
+}
+
 func DownloadAndImportProblem(link string, pid *string) error {
 	path, err := DownloadProblem(link)
 	if err != nil {
@@ -22,7 +32,13 @@ func DownloadAndImportProblem(link string, pid *string) error {
 		os.Exit(-1)
 	}
 
-	return ImportProblem(path, pid)
+	err = ImportProblem(path, pid)
+
+	data := GetData()
+	data[link] = *pid
+	SaveData(data)
+
+	return err
 }
 
 func DownloadProblem(link string) (path string, err error) {

@@ -225,24 +225,6 @@ func ImportProblem(path string, pid *string) error {
 		newStatements[statement.GetLocale()] = statement
 	}
 
-	var mainStatement *atlas.Statement = nil
-
-	if ukr, ok := newStatements["uk"]; ok {
-		mainStatement = ukr
-	} else if eng, ok := newStatements["en"]; ok {
-		mainStatement = eng
-	} else {
-		mainStatement, _ = newStatements["ru"]
-	}
-
-	for _, lang := range []string{"uk", "en", "ru"} {
-		if _, ok := newStatements[lang]; !ok {
-			statement := *mainStatement
-			statement.Locale = lang
-			newStatements[lang] = &statement
-		}
-	}
-
 	for _, statement := range newStatements {
 
 		log.Printf("Updating language %v", statement.Locale)

@@ -151,7 +151,7 @@ func (p PolygonImporter) GetStatements(ctx context.Context, tw *typewriter.Typew
 		}
 		locale, err := MakeLocale(statement.Language)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		propdata, err := ioutil.ReadFile(filepath.Join(p.path, filepath.Dir(statement.Path), "problem-properties.json"))
@@ -246,6 +246,11 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 
 	if len(p.spec.Judging.Testsets) > 0 {
 		testset := p.spec.Judging.Testsets[0]
+		for _, test := range p.spec.Judging.Testsets {
+			if test.Name == "tests" {
+				testset = test
+			}
+		}
 
 		// read tests by group
 		groupTests := map[uint32][]SpecificationTest{}
