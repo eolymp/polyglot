@@ -14,3 +14,10 @@ Or you can directly download it from polygon
 ```
 go run ./cmd/eolymp-polyglot dp https://polygon.codeforces.com/aaaaaa/tsypko/problem
 ```
+
+If you want to update a problem, you need to add --id=11111 before the command. For example,
+
+
+```
+go run ./cmd/eolymp-polyglot --id=11111 dp https://polygon.codeforces.com/aaaaaa/tsypko/problem
+```
