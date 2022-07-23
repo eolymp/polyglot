@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/eolymp/contracts/go/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"io/ioutil"
 	"log"
 	"os"

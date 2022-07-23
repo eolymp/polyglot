@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/eolymp/contracts/go/eolymp/atlas"
-	"github.com/eolymp/contracts/go/eolymp/keeper"
-	"github.com/eolymp/contracts/go/eolymp/typewriter"
 	"github.com/eolymp/go-packages/httpx"
 	"github.com/eolymp/go-packages/oauth"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/keeper"
+	"github.com/eolymp/go-sdk/eolymp/typewriter"
 	c "github.com/eolymp/polyglot/cmd/config"
 	"github.com/spf13/viper"
 	"log"
