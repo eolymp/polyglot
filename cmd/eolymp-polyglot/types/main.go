@@ -2,10 +2,10 @@ package types
 
 import (
 	"context"
-	"github.com/eolymp/contracts/go/eolymp/atlas"
-	"github.com/eolymp/contracts/go/eolymp/executor"
-	"github.com/eolymp/contracts/go/eolymp/keeper"
-	"github.com/eolymp/contracts/go/eolymp/typewriter"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/executor"
+	"github.com/eolymp/go-sdk/eolymp/keeper"
+	"github.com/eolymp/go-sdk/eolymp/typewriter"
 )
 
 type Importer interface {

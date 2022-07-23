@@ -3,8 +3,9 @@ package types
 import (
 	"context"
 	"fmt"
-	"github.com/eolymp/contracts/go/eolymp/keeper"
-	"github.com/eolymp/contracts/go/eolymp/typewriter"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/keeper"
+	"github.com/eolymp/go-sdk/eolymp/typewriter"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,10 +16,10 @@ import (
 )
 
 const RepeatNumber = 10
-const TimeSleep = time.Minute
+const TimeSleep = 10 * time.Second
 
 func UpdateContentWithPictures(ctx context.Context, tw *typewriter.TypewriterService, content, source string) (string, error) {
-	exts := []string{".png", ".jpeg", ".jpg", ".eps"}
+	exts := []string{".png", ".jpeg", ".jpg"}
 	files := FindFilesWithExtension(source, exts)
 	for _, file := range files {
 		if strings.Contains(content, file) {
@@ -103,4 +104,57 @@ func RemoveSpaces(data string) string {
 		r--
 	}
 	return data[l:r]
+}
+
+func GetTestsFromLocation(path string, kpr *keeper.KeeperService) ([]*atlas.Test, error) {
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	inputExtensions := map[string]bool{"": true, ".in": true, ".dat": true}
+	outputExtensions := map[string]bool{".a": true, ".out": true, ".sol": true, ".ans": true}
+
+	inputs := map[string]string{}
+	outputs := map[string]string{}
+
+	for _, file := range files {
+		extension := filepath.Ext(file.Name())
+		filename := file.Name()[:len(file.Name())-len(extension)]
+		dest := filepath.Join(path, file.Name())
+		if inputExtensions[extension] {
+			inputs[filename] = dest
+		} else if outputExtensions[extension] {
+			outputs[filename] = dest
+		} else {
+			inputs[file.Name()] = dest
+		}
+	}
+
+	testCounter := 0
+	var tests []*atlas.Test
+
+	for filename, inputName := range inputs {
+		outputName, ok := outputs[filename]
+		if ok {
+			input, err := MakeObject(inputName, kpr)
+			if err != nil {
+				log.Printf("Unable to upload test input data to E-Olymp: %v", err)
+				return nil, err
+			}
+			output, err := MakeObject(outputName, kpr)
+			if err != nil {
+				log.Printf("Unable to upload test output data to E-Olymp: %v", err)
+				return nil, err
+			}
+			log.Printf("Uploaded test %d", testCounter+1)
+			testCounter += 1
+			test := &atlas.Test{}
+			test.Index = int32(testCounter)
+			test.InputObjectId = input
+			test.AnswerObjectId = output
+			tests = append(tests, test)
+		}
+	}
+	return tests, nil
 }

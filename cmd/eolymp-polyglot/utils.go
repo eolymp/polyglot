@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/eolymp/contracts/go/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,7 +11,7 @@ import (
 )
 
 const RepeatNumber = 10
-const TimeSleep = time.Minute
+const TimeSleep = 10 * time.Second
 
 func CreateProblem(ctx context.Context) (string, error) {
 	for i := 0; i < RepeatNumber; i++ {

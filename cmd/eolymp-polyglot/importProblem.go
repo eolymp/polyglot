@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/eolymp/contracts/go/eolymp/atlas"
-	"github.com/eolymp/contracts/go/eolymp/wellknown"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/wellknown"
 	"github.com/eolymp/polyglot/cmd/eolymp-polyglot/types"
 	"log"
 )
@@ -14,6 +14,9 @@ func ImportProblem(path string, pid *string) error {
 	var err error
 
 	imp, err := types.CreatePolygonImporter(path)
+	if err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 
