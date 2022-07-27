@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/antchfx/xmlquery v1.3.11
 	github.com/eolymp/go-packages v0.0.0-20220712230557-4abd4e7dd38a
-	github.com/eolymp/go-sdk v0.0.0-20220720145916-c01855fe8329
+	github.com/eolymp/go-sdk v0.0.0-20220727000133-29739f8af20a
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.9.0
 )
@@ -17,7 +17,6 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/frankban/quicktest v1.13.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
