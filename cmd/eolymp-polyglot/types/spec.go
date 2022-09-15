@@ -8,6 +8,7 @@ type Specification struct {
 	Judging    SpecificationJudging     `xml:"judging"`
 	Checker    SpecificationChecker     `xml:"assets>checker"`
 	Interactor SpecificationInteractor  `xml:"assets>interactor"`
+	Tags       []SpecificationTag       `xml:"tags>tag"`
 }
 
 type SpecificationName struct {
@@ -92,6 +93,10 @@ type SpecificationBinary struct {
 type SpecificationSource struct {
 	Path string `xml:"path,attr"`
 	Type string `xml:"type,attr"`
+}
+
+type SpecificationTag struct {
+	Value string `xml:"value,attr"`
 }
 
 type PolygonProblemProperties struct {

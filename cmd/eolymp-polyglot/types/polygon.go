@@ -10,6 +10,7 @@ import (
 	"github.com/eolymp/go-sdk/eolymp/executor"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
 	"github.com/eolymp/go-sdk/eolymp/typewriter"
+	"golang.org/x/exp/slices"
 	"io/ioutil"
 	"log"
 	"os"
@@ -243,6 +244,11 @@ func (p PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
 }
 
 func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error) {
+
+	tags := p.getTags()
+
+	blockMin := slices.Contains(tags, "block_min")
+
 	var groups []*Group
 
 	if len(p.spec.Judging.Testsets) > 0 {
@@ -283,6 +289,10 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 			xts.ScoringMode = atlas.ScoringMode_EACH
 			if group.PointsPolicy == "complete-group" {
 				xts.ScoringMode = atlas.ScoringMode_ALL
+			}
+
+			if blockMin && group.Name != 0 {
+				xts.ScoringMode = atlas.ScoringMode_WORST
 			}
 
 			xts.FeedbackPolicy = atlas.FeedbackPolicy_COMPLETE
@@ -370,4 +380,12 @@ func (p PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
 		}
 	}
 	return templates, nil
+}
+
+func (p PolygonImporter) getTags() []string {
+	var tags []string
+	for _, tag := range p.spec.Tags {
+		tags = append(tags, tag.Value)
+	}
+	return tags
 }

@@ -5,9 +5,10 @@ go 1.18
 require (
 	github.com/antchfx/xmlquery v1.3.11
 	github.com/eolymp/go-packages v0.0.0-20220712230557-4abd4e7dd38a
-	github.com/eolymp/go-sdk v0.0.0-20220914234225-4d07e6809791
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.9.0
+	golang.org/x/exp v0.0.0-20220915105810-2d61f44442a3
 )
 
 require (
@@ -15,9 +16,9 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/eolymp/go-sdk v0.0.0-20220914234225-4d07e6809791 // indirect
 	github.com/frankban/quicktest v1.13.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -42,7 +43,7 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6 // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20210930144712-2e2e1008e8a3 // indirect
 	google.golang.org/grpc v1.47.0 // indirect
