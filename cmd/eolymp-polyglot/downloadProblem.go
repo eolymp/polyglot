@@ -28,8 +28,7 @@ func UpdateProblem(link string) error {
 func DownloadAndImportProblem(link string, pid *string) error {
 	path, err := DownloadProblem(link)
 	if err != nil {
-		log.Println("Failed to download problem")
-		os.Exit(-1)
+		return errors.New("failed to download problem")
 	}
 
 	err = ImportProblem(path, pid)
