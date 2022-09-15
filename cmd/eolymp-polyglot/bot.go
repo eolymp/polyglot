@@ -30,7 +30,7 @@ func findAndUpdateProblem(bot *tg.BotAPI, msg *tg.Message) {
 	for _, problem := range conf.Telegram.Problems {
 		if problem.Id == msg.Text {
 			bot.Send(replyToMsg(msg, "Started to update the problem"))
-			problemId := problem.Id
+			problemId := problem.PId
 			pid := &problemId
 			if err := DownloadAndImportProblem(problem.Link, pid); err != nil {
 				bot.Send(replyToMsg(msg, err.Error()))
