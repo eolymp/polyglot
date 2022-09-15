@@ -5,5 +5,12 @@ eolymp:
 polygon:
   login: ""
   password: ""
+telegram:
+  token: ""
+  chatid: 0
+  problems:
+    - id: ""
+      link: ""
+      pid: ""
 source: ""
 spaceid: "00000000-0000-0000-0000-000000000000"

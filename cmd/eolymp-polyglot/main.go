@@ -60,6 +60,8 @@ func main() {
 	command := flag.Arg(0)
 
 	switch command {
+	case "bot":
+		BotStart()
 	case "ic":
 		if contestId := flag.Arg(1); contestId == "" {
 			log.Println("Path argument is empty")
