@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/antchfx/xmlquery v1.3.11
 	github.com/eolymp/go-packages v0.0.0-20220712230557-4abd4e7dd38a
-	github.com/eolymp/go-sdk v0.0.0-20220727000133-29739f8af20a
+	github.com/eolymp/go-sdk v0.0.0-20220914234225-4d07e6809791
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.9.0
 )

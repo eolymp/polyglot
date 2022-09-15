@@ -135,6 +135,7 @@ func (p PolygonImporter) GetInteractor() (*executor.Interactor, error) {
 		}
 
 		return &executor.Interactor{
+			Type:   executor.Interactor_PROGRAM,
 			Source: string(data), // todo: actually read file
 			Lang:   lang,
 		}, nil
