@@ -110,6 +110,30 @@ func UpdateStatement(ctx context.Context, input *atlas.UpdateStatementInput) (*a
 	return atl.UpdateStatement(ctx, input)
 }
 
+func CreateCodeTemplate(ctx context.Context, input *atlas.CreateCodeTemplateInput) (*atlas.CreateCodeTemplateOutput, error) {
+	for i := 0; i < RepeatNumber; i++ {
+		out, err := atl.CreateCodeTemplate(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while creating code template: %v", err)
+		time.Sleep(TimeSleep)
+	}
+	return atl.CreateCodeTemplate(ctx, input)
+}
+
+func DeleteCodeTemplate(ctx context.Context, input *atlas.DeleteCodeTemplateInput) (*atlas.DeleteCodeTemplateOutput, error) {
+	for i := 0; i < RepeatNumber; i++ {
+		out, err := atl.DeleteCodeTemplate(ctx, input)
+		if err == nil {
+			return out, nil
+		}
+		log.Printf("Error while deleting code template: %v", err)
+		time.Sleep(TimeSleep)
+	}
+	return atl.DeleteCodeTemplate(ctx, input)
+}
+
 func SaveData(data map[string]interface{}) {
 	json, err := json.Marshal(data)
 	if err != nil {
