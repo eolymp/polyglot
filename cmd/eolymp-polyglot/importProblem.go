@@ -92,13 +92,21 @@ func ImportProblem(path string, pid *string) error {
 	oldTemplates, err := atl.ListCodeTemplates(ctx, &atlas.ListCodeTemplatesInput{ProblemId: *pid})
 
 	for _, template := range oldTemplates.GetItems() {
-		_, _ = atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
+		_, err = DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
+		if err != nil {
+			log.Printf("Unable to delete code template: %v", err)
+			return err
+		}
 	}
 
 	templates, err := imp.GetTemplates(pid)
 
 	for _, template := range templates {
-		_, _ = atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+		_, err = CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+		if err != nil {
+			log.Printf("Unable to create code template: %v", err)
+			return err
+		}
 		log.Printf("Added a template for %s", template.Runtime)
 	}
 
