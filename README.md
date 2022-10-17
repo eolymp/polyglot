@@ -21,3 +21,17 @@ If you want to update a problem, you need to add --id=11111 before the command. 
 ```
 go run ./cmd/eolymp-polyglot --id=11111 dp https://polygon.codeforces.com/aaaaaa/tsypko/problem
 ```
+
+If you have downloaded the problem using this tool, you can also run this command in order to update the problem
+
+```
+go run ./cmd/eolymp-polyglot up https://polygon.codeforces.com/aaaaaa/tsypko/problem
+```
+
+If you have a contest on Polygon that you want to upload, you can run the following command
+
+```
+go run ./cmd/eolymp-polyglot ic 12345
+```
+
+Where 12345 is the id of the polygon contest. This command will upload the problems from the contest to the problem archive. If you want to update all the problem in a contest, you need to replace "ic" by "uc".
