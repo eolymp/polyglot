@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/eolymp/go-packages/httpx"
-	"github.com/eolymp/go-packages/oauth"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
 	"github.com/eolymp/go-sdk/eolymp/typewriter"
 	c "github.com/eolymp/polyglot/cmd/config"
+	"github.com/eolymp/polyglot/cmd/httpx"
+	"github.com/eolymp/polyglot/cmd/oauth"
 	"github.com/spf13/viper"
 	"log"
 	"net/http"
@@ -36,6 +36,8 @@ func main() {
 	if err != nil {
 		log.Printf("Unable to decode into struct, %v", err)
 	}
+	apiLink := "https://api.eolymp.com"
+	spaceLink := apiLink + "/spaces/" + conf.SpaceId
 
 	client = httpx.NewClient(
 		&http.Client{Timeout: 300 * time.Second},
@@ -47,12 +49,13 @@ func main() {
 		httpx.WithHeaders(map[string][]string{
 			"Space-ID": {conf.SpaceId},
 		}),
+		httpx.WithRetry(10),
 	)
 
-	atl = atlas.NewAtlas(client)
+	atl = atlas.NewAtlasHttpClient(spaceLink, client)
 
-	tw = typewriter.NewTypewriter(client)
-	kpr = keeper.NewKeeper(client)
+	tw = typewriter.NewTypewriterHttpClient(apiLink, client)
+	kpr = keeper.NewKeeperHttpClient(apiLink, client)
 
 	pid := flag.String("id", "", "Problem ID")
 	flag.Parse()
