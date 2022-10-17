@@ -4,19 +4,16 @@ go 1.18
 
 require (
 	github.com/antchfx/xmlquery v1.3.11
-	github.com/eolymp/go-packages v0.0.0-20220712230557-4abd4e7dd38a
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.9.0
 	golang.org/x/exp v0.0.0-20220915105810-2d61f44442a3
+	github.com/eolymp/go-sdk v0.0.0-20221017135413-ea34f3046cc5
 )
 
 require (
 	github.com/antchfx/xpath v1.2.1 // indirect
-	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/eolymp/go-sdk v0.0.0-20220914234225-4d07e6809791 // indirect
 	github.com/frankban/quicktest v1.13.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
@@ -25,15 +22,10 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.2 // indirect
 	github.com/nwaples/rardecode v1.1.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
-	github.com/prometheus/client_golang v1.12.2 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.32.1 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
