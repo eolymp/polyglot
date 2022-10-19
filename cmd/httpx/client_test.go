@@ -2,7 +2,7 @@ package httpx_test
 
 import (
 	"fmt"
-	"github.com/eolymp/go-packages/httpx"
+	"github.com/eolymp/polyglot/cmd/httpx"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"

@@ -4,13 +4,11 @@ go 1.18
 
 require (
 	github.com/antchfx/xmlquery v1.3.12
-	github.com/eolymp/go-packages v0.0.0-20220821204400-c5a43fa1e223
 	github.com/eolymp/go-sdk v0.0.0-20221017135413-ea34f3046cc5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.13.0
-	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
-	golang.org/x/text v0.3.8
+	golang.org/x/exp v0.0.0-20221018221608-02f3b879a704
 )
 
 require (
@@ -37,9 +35,10 @@ require (
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	golang.org/x/net v0.0.0-20221017152216-f25eb7ecb193 // indirect
-	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
-	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a // indirect
+	golang.org/x/net v0.0.0-20221019024206-cb67ada4b0ad // indirect
+	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
+	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55 // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

@@ -1,7 +1,7 @@
 package httpx_test
 
 import (
-	"github.com/eolymp/go-packages/httpx"
+	"github.com/eolymp/polyglot/cmd/httpx"
 	"net/http"
 	"net/http/httptest"
 	"testing"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/eolymp/go-packages/httpx"
+	"github.com/eolymp/polyglot/cmd/httpx"
 	"net/http"
 	"net/url"
 	"strings"

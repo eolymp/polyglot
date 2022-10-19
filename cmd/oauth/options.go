@@ -1,7 +1,7 @@
 package oauth
 
 import (
-	"github.com/eolymp/go-packages/httpx"
+	"github.com/eolymp/polyglot/cmd/httpx"
 	"time"
 )
 
