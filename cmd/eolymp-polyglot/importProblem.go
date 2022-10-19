@@ -51,7 +51,7 @@ func ImportProblem(path string, pid *string) error {
 		}
 		var filters []*wellknown.ExpressionID
 		filters = append(filters, &eq)
-		input := &atlas.ListSolutionsInput{Filters: &atlas.ListSolutionsInput_Filter{ProblemId: filters}}
+		input := &atlas.ListSolutionsInput{Filters: &atlas.ListSolutionsInput_Filter{ProblemId: filters}, ProblemId: *pid}
 		solout, err := atl.ListSolutions(ctx, input)
 		if err != nil {
 			log.Printf("Unable to list problem solutions in Atlas: %v", err)
@@ -75,7 +75,7 @@ func ImportProblem(path string, pid *string) error {
 		for _, ts := range tsout.GetItems() {
 			testsets[ts.GetIndex()] = ts
 
-			ttout, err := atl.ListTests(ctx, &atlas.ListTestsInput{TestsetId: ts.GetId()})
+			ttout, err := atl.ListTests(ctx, &atlas.ListTestsInput{TestsetId: ts.GetId(), ProblemId: *pid})
 			if err != nil {
 				log.Printf("Unable to list problem tests in Atlas: %v", err)
 				return err
@@ -92,13 +92,21 @@ func ImportProblem(path string, pid *string) error {
 	oldTemplates, err := atl.ListCodeTemplates(ctx, &atlas.ListCodeTemplatesInput{ProblemId: *pid})
 
 	for _, template := range oldTemplates.GetItems() {
-		_, _ = atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id})
+		_, err = atl.DeleteCodeTemplate(ctx, &atlas.DeleteCodeTemplateInput{TemplateId: template.Id, ProblemId: *pid})
+		if err != nil {
+			log.Printf("Unable to delete code template: %v", err)
+			return err
+		}
 	}
 
 	templates, err := imp.GetTemplates(pid)
 
 	for _, template := range templates {
-		_, _ = atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+		_, err = atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
+		if err != nil {
+			log.Printf("Unable to create code template: %v", err)
+			return err
+		}
 		log.Printf("Added a template for %s", template.Runtime)
 	}
 
@@ -151,7 +159,7 @@ func ImportProblem(path string, pid *string) error {
 			delete(testsets, group.Name)
 
 			if xts.Id != "" {
-				_, err = UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, Testset: xts})
+				_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, ProblemId: *pid, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
 					return err
@@ -159,7 +167,7 @@ func ImportProblem(path string, pid *string) error {
 
 				log.Printf("Updated testset %v", xts.Id)
 			} else {
-				out, err := CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
+				out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
 				if err != nil {
 					log.Printf("Unable to create testset: %v", err)
 					return err
@@ -180,17 +188,17 @@ func ImportProblem(path string, pid *string) error {
 				delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
 
 				if xtt.Id == "" {
-					out, err := CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, Test: xtt})
+					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, ProblemId: *pid, Test: xtt})
 					if err != nil {
 						log.Printf("Unable to create test: %v", err)
 						return err
 					}
 
-					xtt.Id = out.Id
+					xtt.Id = out.TestId
 
 					log.Printf("Created test %v", xtt.Id)
 				} else {
-					if _, err := UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt}); err != nil {
+					if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt, TestsetId: xts.Id, ProblemId: *pid}); err != nil {
 						log.Printf("Unable to update test: %v", err)
 						return err
 					}
@@ -205,7 +213,7 @@ func ImportProblem(path string, pid *string) error {
 	// remove unused objects
 	for _, test := range tests {
 		log.Printf("Deleting unused test %v", test.Id)
-		if _, err := DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id}); err != nil {
+		if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id, ProblemId: *pid}); err != nil {
 			log.Printf("Unable to delete test: %v", err)
 			return err
 		}
@@ -213,7 +221,7 @@ func ImportProblem(path string, pid *string) error {
 
 	for _, testset := range testsets {
 		log.Printf("Deleting unused testset %v", testset.Id)
-		if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id}); err != nil {
+		if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id, ProblemId: *pid}); err != nil {
 			log.Printf("Unable to delete testset: %v", err)
 			return err
 		}
@@ -247,17 +255,17 @@ func ImportProblem(path string, pid *string) error {
 		delete(statements, statement.GetLocale())
 
 		if xs.Id == "" {
-			out, err := CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
+			out, err := atl.CreateStatement(ctx, &atlas.CreateStatementInput{ProblemId: *pid, Statement: xs})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
 				return err
 			}
 
-			xs.Id = out.Id
+			xs.Id = out.StatementId
 
 			log.Printf("Created statement %v", xs.Id)
 		} else {
-			_, err = UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs})
+			_, err = atl.UpdateStatement(ctx, &atlas.UpdateStatementInput{StatementId: xs.Id, Statement: xs, ProblemId: *pid})
 			if err != nil {
 				log.Printf("Unable to create statement: %v", err)
 				return err
@@ -270,7 +278,7 @@ func ImportProblem(path string, pid *string) error {
 	// remove unused objects
 	for _, statement := range statements {
 		log.Printf("Deleting unused statement %v", statement.Id)
-		if _, err := atl.DeleteStatement(ctx, &atlas.DeleteStatementInput{StatementId: statement.Id}); err != nil {
+		if _, err := atl.DeleteStatement(ctx, &atlas.DeleteStatementInput{StatementId: statement.Id, ProblemId: *pid}); err != nil {
 			log.Printf("Unable to delete statement: %v", err)
 			return err
 		}
@@ -319,7 +327,7 @@ func ImportProblem(path string, pid *string) error {
 	// remove unused objects
 	for _, solution := range solutions {
 		log.Printf("Deleting unused solution %v", solution.Id)
-		if _, err := atl.DeleteSolution(ctx, &atlas.DeleteSolutionInput{SolutionId: solution.Id}); err != nil {
+		if _, err := atl.DeleteSolution(ctx, &atlas.DeleteSolutionInput{SolutionId: solution.Id, ProblemId: *pid}); err != nil {
 			log.Printf("Unable to delete solution: %v", err)
 			return err
 		}
