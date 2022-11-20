@@ -20,7 +20,9 @@ type Importer interface {
 
 	GetTestsets(*keeper.KeeperService) ([]*Group, error)
 
-	GetTemplates(pid *string) ([]*atlas.Template, error)
+	GetTemplates(*string, *keeper.KeeperService) ([]*atlas.Template, error)
+
+	GetAttachments(*string, context.Context, *typewriter.TypewriterService) ([]*atlas.Attachment, error)
 }
 
 type Group struct {

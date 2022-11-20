@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-func ImportProblem(path string, pid *string) error {
+func ImportProblem(path string, pid *string, skipTests bool) error {
 
 	var err error
 
@@ -99,7 +99,10 @@ func ImportProblem(path string, pid *string) error {
 		}
 	}
 
-	templates, err := imp.GetTemplates(pid)
+	templates, err := imp.GetTemplates(pid, kpr)
+	if err != nil {
+		return err
+	}
 
 	for _, template := range templates {
 		_, err = atl.CreateCodeTemplate(ctx, &atlas.CreateCodeTemplateInput{ProblemId: *pid, Template: template})
@@ -143,88 +146,91 @@ func ImportProblem(path string, pid *string) error {
 		log.Printf("No interactor found")
 	}
 
-	testsetList, err := imp.GetTestsets(kpr)
-	if err != nil {
-		// TODO
-	} else if len(testsetList) > 0 {
-		// create testsets
+	if !skipTests {
+		testsetList, err := imp.GetTestsets(kpr)
+		if err != nil {
+			log.Println("Failed to get testsets")
+		} else if len(testsetList) > 0 {
+			// create testsets
 
-		for _, group := range testsetList {
-			oldTestset, ok := testsets[group.Name]
-			xts := group.Testset
-			if ok {
-				xts.Id = oldTestset.Id
-			}
-
-			delete(testsets, group.Name)
-
-			if xts.Id != "" {
-				_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, ProblemId: *pid, Testset: xts})
-				if err != nil {
-					log.Printf("Unable to create testset: %v", err)
-					return err
-				}
-
-				log.Printf("Updated testset %v", xts.Id)
-			} else {
-				out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
-				if err != nil {
-					log.Printf("Unable to create testset: %v", err)
-					return err
-				}
-
-				xts.Id = out.Id
-
-				log.Printf("Created testset %v", xts.Id)
-			}
-
-			// upload tests
-
-			for ti, xtt := range group.Tests {
-				oldTest, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+			for _, group := range testsetList {
+				oldTestset, ok := testsets[group.Name]
+				xts := group.Testset
 				if ok {
-					xtt.Id = oldTest.Id
+					xts.Id = oldTestset.Id
 				}
-				delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
 
-				if xtt.Id == "" {
-					out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, ProblemId: *pid, Test: xtt})
+				delete(testsets, group.Name)
+
+				if xts.Id != "" {
+					_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, ProblemId: *pid, Testset: xts})
 					if err != nil {
-						log.Printf("Unable to create test: %v", err)
+						log.Printf("Unable to create testset: %v", err)
 						return err
 					}
 
-					xtt.Id = out.TestId
-
-					log.Printf("Created test %v", xtt.Id)
+					log.Printf("Updated testset %v", xts.Id)
 				} else {
-					if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt, TestsetId: xts.Id, ProblemId: *pid}); err != nil {
-						log.Printf("Unable to update test: %v", err)
+					out, err := atl.CreateTestset(ctx, &atlas.CreateTestsetInput{ProblemId: *pid, Testset: xts})
+					if err != nil {
+						log.Printf("Unable to create testset: %v", err)
 						return err
 					}
 
-					log.Printf("Updated test %v", xtt.Id)
+					xts.Id = out.Id
+
+					log.Printf("Created testset %v", xts.Id)
 				}
+
+				// upload tests
+
+				for ti, xtt := range group.Tests {
+					oldTest, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+					if ok {
+						xtt.Id = oldTest.Id
+					}
+					delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
+
+					if xtt.Id == "" {
+						out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, ProblemId: *pid, Test: xtt})
+						if err != nil {
+							log.Printf("Unable to create test: %v", err)
+							return err
+						}
+
+						xtt.Id = out.TestId
+
+						log.Printf("Created test %v", xtt.Id)
+					} else {
+						if _, err := atl.UpdateTest(ctx, &atlas.UpdateTestInput{TestId: xtt.Id, Test: xtt, TestsetId: xts.Id, ProblemId: *pid}); err != nil {
+							log.Printf("Unable to update test: %v", err)
+							return err
+						}
+
+						log.Printf("Updated test %v", xtt.Id)
+					}
+				}
+
 			}
-
 		}
-	}
 
-	// remove unused objects
-	for _, test := range tests {
-		log.Printf("Deleting unused test %v", test.Id)
-		if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id, ProblemId: *pid}); err != nil {
-			log.Printf("Unable to delete test: %v", err)
-			return err
+		// remove unused objects
+		for _, test := range tests {
+			log.Printf("Deleting unused test %v", test.Id)
+			if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id, ProblemId: *pid}); err != nil {
+				log.Printf("Unable to delete test: %v", err)
+				return err
+			}
 		}
-	}
 
-	for _, testset := range testsets {
-		log.Printf("Deleting unused testset %v", testset.Id)
-		if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id, ProblemId: *pid}); err != nil {
-			log.Printf("Unable to delete testset: %v", err)
-			return err
+		for _, testset := range testsets {
+			log.Printf("Deleting unused testset %v", testset.Id)
+			if _, err := atl.DeleteTestset(ctx, &atlas.DeleteTestsetInput{TestsetId: testset.Id, ProblemId: *pid}); err != nil {
+				log.Printf("Unable to delete testset: %v", err)
+				return err
+			}
 		}
+
 	}
 
 	newStatements := map[string]*atlas.Statement{}
@@ -288,7 +294,7 @@ func ImportProblem(path string, pid *string) error {
 	solutionList, err := imp.GetSolutions()
 
 	if err != nil {
-		// TODO
+		return nil
 	} else {
 
 		for _, solution := range solutionList {
@@ -331,6 +337,37 @@ func ImportProblem(path string, pid *string) error {
 			log.Printf("Unable to delete solution: %v", err)
 			return err
 		}
+	}
+
+	oldAttachments, err := atl.ListAttachments(ctx, &atlas.ListAttachmentsInput{ProblemId: *pid})
+	if err != nil {
+		return err
+	}
+	for _, attachment := range oldAttachments.Items {
+		_, err = atl.DeleteAttachment(ctx, &atlas.DeleteAttachmentInput{
+			ProblemId:    *pid,
+			AttachmentId: attachment.Id,
+		})
+		if err != nil {
+			return err
+		}
+		log.Println(attachment.Name, "has been deleted")
+	}
+
+	attachments, err := imp.GetAttachments(pid, ctx, tw)
+	if err != nil {
+		return err
+	}
+
+	for _, attachment := range attachments {
+		_, err = atl.CreateAttachment(ctx, &atlas.CreateAttachmentInput{
+			ProblemId:  *pid,
+			Attachment: attachment,
+		})
+		if err != nil {
+			return err
+		}
+		log.Println(attachment.Name, "has been uploaded")
 	}
 
 	log.Printf("Finished")

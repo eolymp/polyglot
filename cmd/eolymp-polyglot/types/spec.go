@@ -4,7 +4,9 @@ type Specification struct {
 	Names      []SpecificationName      `xml:"names>name"`
 	Statements []SpecificationStatement `xml:"statements>statement"`
 	Solutions  []SpecificationSolution  `xml:"tutorials>tutorial"`
-	Files      []SpecificationFile      `xml:"files>executables>executable"`
+	Templates  []SpecificationTemplate  `xml:"files>executables>executable"`
+	Graders    []SpecificationGrader    `xml:"files>resources>file"`
+	Materials  []SpecificationMaterial  `xml:"materials>material"`
 	Judging    SpecificationJudging     `xml:"judging"`
 	Checker    SpecificationChecker     `xml:"assets>checker"`
 	Interactor SpecificationInteractor  `xml:"assets>interactor"`
@@ -32,9 +34,24 @@ type SpecificationSolution struct {
 	Type     string `xml:"type,attr"`
 }
 
-type SpecificationFile struct {
-	Source  SpecificationSource `xml:"source"`
-	Binarie SpecificationBinary `xml:"binary"`
+type SpecificationTemplate struct {
+	Source SpecificationSource `xml:"source"`
+	Binary SpecificationBinary `xml:"binary"`
+}
+
+type SpecificationGrader struct {
+	Path   string                     `xml:"path,attr"`
+	Type   string                     `xml:"type,attr"`
+	Assets []SpecificationGraderAsset `xml:"assets>asset"`
+}
+
+type SpecificationGraderAsset struct {
+	Name string `xml:"name,attr"`
+}
+
+type SpecificationMaterial struct {
+	Path    string `xml:"path,attr"`
+	Publish string `xml:"publish,attr"`
 }
 
 type SpecificationJudging struct {
@@ -54,7 +71,7 @@ type SpecificationTestset struct {
 
 type SpecificationTest struct {
 	Method  string  `xml:"method,attr"`
-	Group   uint32  `xml:"group,attr"`
+	Group   string  `xml:"group,attr"`
 	Command string  `xml:"cmd,attr"`
 	Sample  bool    `xml:"sample,attr"`
 	Points  float32 `xml:"points,attr"`
@@ -62,14 +79,14 @@ type SpecificationTest struct {
 
 type SpecificationGroup struct {
 	FeedbackPolicy string                    `xml:"feedback-policy,attr"`
-	Name           uint32                    `xml:"name,attr"`
+	Name           string                    `xml:"name,attr"`
 	Points         float32                   `xml:"points,attr"`
 	PointsPolicy   string                    `xml:"points-policy,attr"`
 	Dependencies   []SpecificationDependency `xml:"dependencies>dependency"`
 }
 
 type SpecificationDependency struct {
-	Group uint32 `xml:"group,attr"`
+	Group string `xml:"group,attr"`
 }
 
 type SpecificationChecker struct {

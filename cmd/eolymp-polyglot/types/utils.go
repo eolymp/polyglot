@@ -70,28 +70,36 @@ func MakeLocale(lang string) (string, error) {
 }
 
 func MakeObject(path string, kpr *keeper.KeeperService) (key string, err error) {
+	output, err := MakeObjectGetFile(path, kpr)
+	if err != nil {
+		return "", err
+	}
+	return output.Key, err
+}
+
+func MakeObjectGetFile(path string, kpr *keeper.KeeperService) (output *keeper.CreateObjectOutput, err error) {
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return MakeObjectByData(data, kpr)
 }
 
-func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (key string, err error) {
+func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (output *keeper.CreateObjectOutput, err error) {
 	var out *keeper.CreateObjectOutput
 	for i := 0; i < RepeatNumber; i++ {
 		out, err = kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
 		if err == nil {
-			return out.Key, nil
+			return out, nil
 		}
 
 		log.Printf("Error while uploading file: %v", err)
 		time.Sleep(TimeSleep)
 	}
 
-	return "", err
+	return nil, err
 }
 
 func RemoveSpaces(data string) string {

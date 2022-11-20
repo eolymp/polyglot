@@ -14,7 +14,7 @@ import (
 const RepeatNumberProblemUploads = 5
 const TimeToSleep = 5 * time.Minute
 
-func ImportContest(contestId string) {
+func ImportContest(contestId string) error {
 	data := GetData()
 	problems := GetProblems(contestId)
 	log.Println(problems)
@@ -23,17 +23,19 @@ func ImportContest(contestId string) {
 	for _, problem := range problems {
 		pid, err := CreateProblem(ctx)
 		if err != nil {
-			panic(err)
+			log.Println("Failed to create problem")
+			return err
 		}
 		problemList = append(problemList, map[string]interface{}{"id": pid, "link": problem})
 	}
 	data[contestId] = problemList
 	SaveData(data)
 	log.Println(data)
-	UpdateContest(contestId)
+	//UpdateContest(contestId)
+	return nil
 }
 
-func UpdateContest(contestId string) {
+func UpdateContest(contestId string) error {
 	data := GetData()
 	t := reflect.ValueOf(data[contestId])
 	for i := 0; i < t.Len(); i++ {
@@ -49,11 +51,16 @@ func UpdateContest(contestId string) {
 			if err := DownloadAndImportProblem(g["link"], &pid); err != nil {
 				log.Println(err)
 				time.Sleep(TimeToSleep)
+				if j+1 == RepeatNumberProblemUploads {
+					log.Println("Failed to update problem", pid)
+					return err
+				}
 			} else {
 				break
 			}
 		}
 	}
+	return nil
 }
 
 func GetProblems(contestId string) []string {

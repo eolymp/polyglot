@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -263,25 +264,56 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 		groupTests := map[uint32][]SpecificationTest{}
 		testIndex := map[string]int{}
 		for gi, test := range testset.Tests {
-			groupTests[test.Group] = append(groupTests[test.Group], test)
-			testIndex[fmt.Sprint(test.Group, "/", len(groupTests[test.Group]))] = gi
+			groups := strings.Split(test.Group, "-")
+			for _, group := range groups {
+				intName, err := strconv.ParseUint(group, 10, 32)
+				if err != nil {
+					return nil, err
+				}
+				groupIndex := uint32(intName)
+				groupTests[groupIndex] = append(groupTests[groupIndex], test)
+				testIndex[fmt.Sprint(groupIndex, "/", len(groupTests[groupIndex]))] = gi
+			}
 		}
 
 		groupList := testset.Groups
 		if len(groupList) == 0 {
 			groupList = []SpecificationGroup{
-				{FeedbackPolicy: "icpc-expanded", Name: 0, Points: 100, PointsPolicy: "each-test"},
+				{FeedbackPolicy: "icpc-expanded", Name: "0", Points: 100, PointsPolicy: "each-test"},
 			}
 		}
 
-		for _, group := range groupList {
+		for intName, groupTest := range groupTests {
+
+			group := groupList[0]
+			found := false
+			for _, g := range groupList {
+				if g.Name == string(intName) {
+					group = g
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				group = SpecificationGroup{
+					FeedbackPolicy: groupList[0].FeedbackPolicy,
+					Name:           string(intName),
+					Points:         0,
+					PointsPolicy:   groupList[0].PointsPolicy,
+					Dependencies:   nil,
+				}
+			}
+
 			newGroup := new(Group)
+			log.Println(group.Name)
 
-			newGroup.Name = group.Name
+			groupIndex := uint32(intName)
 
+			newGroup.Name = groupIndex
 			xts := &atlas.Testset{}
 
-			xts.Index = group.Name
+			xts.Index = newGroup.Name
 			xts.TimeLimit = uint32(testset.TimeLimit)
 			xts.MemoryLimit = uint64(testset.MemoryLimit)
 			xts.FileSizeLimit = 536870912
@@ -291,7 +323,7 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 				xts.ScoringMode = atlas.ScoringMode_ALL
 			}
 
-			if blockMin && group.Name != 0 {
+			if blockMin && group.Name != "0" {
 				xts.ScoringMode = atlas.ScoringMode_WORST
 			}
 
@@ -304,14 +336,19 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 
 			xts.Dependencies = nil
 			for _, d := range group.Dependencies {
-				xts.Dependencies = append(xts.Dependencies, d.Group)
+				intName, err := strconv.ParseUint(d.Group, 10, 32)
+				if err != nil {
+					continue
+				}
+				groupIndex := uint32(intName)
+				xts.Dependencies = append(xts.Dependencies, groupIndex)
 			}
 
 			newGroup.Testset = xts
 
 			// upload tests
 
-			for ti, ts := range groupTests[group.Name] {
+			for ti, ts := range groupTest {
 				xtt := &atlas.Test{}
 
 				// index in the test list from specification
@@ -332,14 +369,14 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 				}
 
 				xtt.Index = int32(ti + 1)
-				xtt.Example = ts.Sample
+				xtt.Example = intName == 0
 				xtt.Score = ts.Points
 				xtt.InputObjectId = input
 				xtt.AnswerObjectId = answer
 
 				if xts.FeedbackPolicy == atlas.FeedbackPolicy_ICPC_EXPANDED {
-					score := 100 / len(groupTests[group.Name])
-					if len(groupTests[group.Name])-ti <= 100%len(groupTests[group.Name]) {
+					score := 100 / len(groupTests[groupIndex])
+					if len(groupTests[groupIndex])-ti <= 100%len(groupTests[groupIndex]) {
 						score++
 					}
 					xtt.Score = float32(score)
@@ -355,15 +392,16 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 	return groups, nil
 }
 
-func (p PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
+func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([]*atlas.Template, error) {
 	templateLanguages := map[string][]string{
 		"files/template_cpp.cpp":   {"gpp", "cpp:17-gnu10"},
 		"files/template_java.java": {"java"},
 		"files/template_pas.pas":   {"fpc"},
 		"files/template_py.py":     {"pypy", "python"},
 	}
+
 	var templates []*atlas.Template
-	for _, file := range p.spec.Files {
+	for _, file := range p.spec.Templates {
 		name := file.Source.Path
 		if list, ok := templateLanguages[name]; ok {
 			for _, lang := range list {
@@ -379,6 +417,41 @@ func (p PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
 			}
 		}
 	}
+
+	if len(p.spec.Graders) > 0 {
+		template := &atlas.Template{}
+		template.ProblemId = *pid
+		template.Runtime = "cpp:17-gnu10"
+		var graders []*keeper.CreateObjectOutput
+		for _, file := range p.spec.Graders {
+			path := filepath.Join(p.path, file.Path)
+			hasSolution := false
+			for _, asset := range file.Assets {
+				if asset.Name == "solution" {
+					hasSolution = true
+				}
+			}
+			if hasSolution {
+				obj, err := MakeObjectGetFile(path, kpr)
+				if err != nil {
+					fmt.Println("Failed to upload grader")
+					return nil, err
+				}
+				graders = append(graders, obj)
+				splits := strings.Split(path, "/")
+				fileName := splits[len(splits)-1]
+				f := atlas.File{
+					Path:      fileName,
+					SourceErn: obj.BlobErn,
+				}
+				log.Println(fileName, "has been uploaded")
+				template.Files = append(template.Files, &f)
+				templates = append(templates, template)
+			}
+		}
+
+	}
+
 	return templates, nil
 }
 
@@ -388,4 +461,36 @@ func (p PolygonImporter) getTags() []string {
 		tags = append(tags, tag.Value)
 	}
 	return tags
+}
+
+func (p PolygonImporter) GetAttachments(pid *string, ctx context.Context, tw *typewriter.TypewriterService) ([]*atlas.Attachment, error) {
+	var attachments []*atlas.Attachment
+
+	for _, material := range p.spec.Materials {
+		if material.Publish == "with-statement" {
+			data, err := ioutil.ReadFile(filepath.Join(p.path, material.Path))
+			if err != nil {
+				fmt.Println("Failed to upload material")
+				return nil, err
+			}
+
+			splits := strings.Split(material.Path, "/")
+			fileName := splits[len(splits)-1]
+
+			asset, err := tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: fileName, Data: data})
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
+			attachment := atlas.Attachment{
+				ProblemId: *pid,
+				Name:      fileName,
+				Link:      asset.Link,
+			}
+			log.Println(fileName, "has been uploaded")
+			attachments = append(attachments, &attachment)
+		}
+	}
+	return attachments, nil
 }

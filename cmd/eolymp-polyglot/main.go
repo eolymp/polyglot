@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -66,24 +65,20 @@ func main() {
 	case "bot":
 		BotStart()
 	case "ic":
-		if contestId := flag.Arg(1); contestId == "" {
-			log.Println("Path argument is empty")
-			flag.Usage()
-			os.Exit(-1)
-		} else {
-			ImportContest(contestId)
+		for i, contestId := 1, flag.Arg(1); contestId != ""; i, contestId = i+1, flag.Arg(i+1) {
+			if err := ImportContest(contestId); err != nil {
+				log.Fatal(err)
+			}
 		}
 	case "uc":
-		if contestId := flag.Arg(1); contestId == "" {
-			log.Println("Path argument is empty")
-			flag.Usage()
-			os.Exit(-1)
-		} else {
-			UpdateContest(contestId)
+		for i, contestId := 1, flag.Arg(1); contestId != ""; i, contestId = i+1, flag.Arg(i+1) {
+			if err := UpdateContest(contestId); err != nil {
+				log.Fatal(err)
+			}
 		}
 	case "ip":
 		for i, path := 1, flag.Arg(1); path != ""; i, path = i+1, flag.Arg(i+1) {
-			if err := ImportProblem(path, pid); err != nil {
+			if err := ImportProblem(path, pid, false); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -102,5 +97,4 @@ func main() {
 	default:
 		log.Fatal("no command found")
 	}
-
 }

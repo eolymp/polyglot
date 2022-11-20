@@ -152,8 +152,8 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 			test.Index = int32(i)
 			test.Example = true
 			test.Score = 1
-			test.InputObjectId = input
-			test.AnswerObjectId = output
+			test.InputObjectId = input.Key
+			test.AnswerObjectId = output.Key
 			samples.Tests = append(samples.Tests, test)
 		}
 		groups = append(groups, samples)
