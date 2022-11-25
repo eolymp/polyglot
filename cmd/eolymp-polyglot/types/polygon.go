@@ -260,6 +260,13 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 			}
 		}
 
+		groupList := testset.Groups
+		if len(groupList) == 0 {
+			groupList = []SpecificationGroup{
+				{FeedbackPolicy: "icpc-expanded", Name: "0", Points: 100, PointsPolicy: "each-test"},
+			}
+		}
+
 		// read tests by group
 		groupTests := map[uint32][]SpecificationTest{}
 		testIndex := map[string]int{}
@@ -268,18 +275,11 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 			for _, group := range groups {
 				intName, err := strconv.ParseUint(group, 10, 32)
 				if err != nil {
-					return nil, err
+					intName = 0
 				}
 				groupIndex := uint32(intName)
 				groupTests[groupIndex] = append(groupTests[groupIndex], test)
 				testIndex[fmt.Sprint(groupIndex, "/", len(groupTests[groupIndex]))] = gi
-			}
-		}
-
-		groupList := testset.Groups
-		if len(groupList) == 0 {
-			groupList = []SpecificationGroup{
-				{FeedbackPolicy: "icpc-expanded", Name: "0", Points: 100, PointsPolicy: "each-test"},
 			}
 		}
 

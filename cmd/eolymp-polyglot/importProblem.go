@@ -149,7 +149,9 @@ func ImportProblem(path string, pid *string, skipTests bool) error {
 	if !skipTests {
 		testsetList, err := imp.GetTestsets(kpr)
 		if err != nil {
+			log.Println(err)
 			log.Println("Failed to get testsets")
+			return err
 		} else if len(testsetList) > 0 {
 			// create testsets
 
