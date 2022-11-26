@@ -190,6 +190,10 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 	return groups, nil
 }
 
-func (p EjudgeImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
+func (p EjudgeImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([]*atlas.Template, error) {
+	return nil, nil
+}
+
+func (p EjudgeImporter) GetAttachments(*string, context.Context, *typewriter.TypewriterService) ([]*atlas.Attachment, error) {
 	return nil, nil
 }

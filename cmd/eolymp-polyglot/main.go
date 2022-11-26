@@ -57,6 +57,7 @@ func main() {
 	kpr = keeper.NewKeeperHttpClient(apiLink, client)
 
 	pid := flag.String("id", "", "Problem ID")
+	format := flag.String("format", "polygon", "Problem Format")
 	flag.Parse()
 
 	command := flag.Arg(0)
@@ -78,7 +79,7 @@ func main() {
 		}
 	case "ip":
 		for i, path := 1, flag.Arg(1); path != ""; i, path = i+1, flag.Arg(i+1) {
-			if err := ImportProblem(path, pid, false); err != nil {
+			if err := ImportProblem(path, pid, false, *format); err != nil {
 				log.Fatal(err)
 			}
 		}

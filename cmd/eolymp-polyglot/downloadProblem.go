@@ -31,7 +31,7 @@ func DownloadAndImportProblem(link string, pid *string) error {
 		return errors.New("failed to download problem")
 	}
 
-	err = ImportProblem(path, pid, false)
+	err = ImportProblem(path, pid, false, "polygon")
 
 	data := GetData()
 	data[link] = *pid

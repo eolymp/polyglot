@@ -9,11 +9,18 @@ import (
 	"log"
 )
 
-func ImportProblem(path string, pid *string, skipTests bool) error {
+func ImportProblem(path string, pid *string, skipTests bool, format string) error {
 
 	var err error
 
-	imp, err := types.CreatePolygonImporter(path)
+	var imp types.Importer
+
+	if format == "ejudge" {
+		imp, err = types.CreateEjudgeImporter(path)
+	} else {
+		imp, err = types.CreatePolygonImporter(path)
+	}
+
 	if err != nil {
 		return err
 	}
