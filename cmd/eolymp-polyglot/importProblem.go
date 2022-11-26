@@ -226,7 +226,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		// remove unused objects
 		for _, test := range tests {
 			log.Printf("Deleting unused test %v", test.Id)
-			if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestId: test.Id, ProblemId: *pid}); err != nil {
+			if _, err := atl.DeleteTest(ctx, &atlas.DeleteTestInput{TestsetId: test.TestsetId, TestId: test.Id, ProblemId: *pid}); err != nil {
 				log.Printf("Unable to delete test: %v", err)
 				return err
 			}
