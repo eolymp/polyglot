@@ -35,3 +35,9 @@ go run ./cmd/eolymp-polyglot ic 12345
 ```
 
 Where 12345 is the id of the polygon contest. This command will upload the problems from the contest to the problem archive. If you want to update all the problem in a contest, you need to replace "ic" by "uc".
+
+It is possible to import problem in "ejudge" format. For example, using the following command
+
+```
+go run ./cmd/eolymp-polyglot --format=ejudge ip ~/a/b/problem
+```
