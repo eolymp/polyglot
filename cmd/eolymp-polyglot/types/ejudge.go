@@ -54,10 +54,28 @@ func (p EjudgeImporter) GetVerifier() (*executor.Verifier, error) {
 }
 
 func (p EjudgeImporter) HasInteractor() bool {
+	names := [2]string{"inter.cpp", "interactor.cpp"}
+	for _, name := range names {
+		_, err := ioutil.ReadFile(filepath.Join(p.path, name))
+		if err == nil {
+			return true
+		}
+	}
 	return false
 }
 
 func (p EjudgeImporter) GetInteractor() (*executor.Interactor, error) {
+	names := [2]string{"inter.cpp", "interactor.cpp"}
+	for _, name := range names {
+		data, err := ioutil.ReadFile(filepath.Join(p.path, name))
+		if err == nil {
+			return &executor.Interactor{
+				Type:   executor.Interactor_PROGRAM,
+				Source: string(data), // todo: actually read file
+				Lang:   DefaultLang,
+			}, nil
+		}
+	}
 	return nil, nil
 }
 
@@ -114,8 +132,8 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 	testset.TimeLimit = time
 	testset.MemoryLimit = memory
 	testset.FileSizeLimit = 536870912
-	testset.ScoringMode = atlas.ScoringMode_EACH
-	testset.FeedbackPolicy = atlas.FeedbackPolicy_COMPLETE
+	testset.ScoringMode = atlas.ScoringMode_ALL
+	testset.FeedbackPolicy = atlas.FeedbackPolicy_ICPC
 	testset.Dependencies = nil
 
 	samples.Testset = testset

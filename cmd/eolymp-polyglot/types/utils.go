@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -139,12 +140,21 @@ func GetTestsFromLocation(path string, kpr *keeper.KeeperService) ([]*atlas.Test
 		}
 	}
 
+	keys := make([]string, 0)
+	for k, _ := range inputs {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
 	testCounter := 0
 	var tests []*atlas.Test
 
-	for filename, inputName := range inputs {
-		outputName, ok := outputs[filename]
-		if ok {
+	for _, filename := range keys {
+		inputName, ok1 := inputs[filename]
+		outputName, ok2 := outputs[filename]
+		if ok1 && ok2 {
+			log.Println(filename, inputName, outputName)
 			input, err := MakeObject(inputName, kpr)
 			if err != nil {
 				log.Printf("Unable to upload test input data to E-Olymp: %v", err)

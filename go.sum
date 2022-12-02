@@ -64,6 +64,8 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/eolymp/go-sdk v0.0.0-20221017135413-ea34f3046cc5 h1:YPAS2QN61SYWWvzXhAlMb4u/YjNP5nL0YD6DXpDeZ0Y=
 github.com/eolymp/go-sdk v0.0.0-20221017135413-ea34f3046cc5/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
+github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59 h1:rDPN88xV/RscFv7c4dt1X1Lmz2lQ1/d4bJXsqVQxabg=
+github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
 github.com/frankban/quicktest v1.14.3/go.mod h1:mgiwOwqx65TmIk1wJ6Q7wvnVMocbUorkibMOrVTHZps=
 github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4HY=
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=
