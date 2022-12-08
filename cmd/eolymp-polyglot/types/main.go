@@ -1,11 +1,8 @@
 package types
 
 import (
-	"context"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"github.com/eolymp/go-sdk/eolymp/executor"
-	"github.com/eolymp/go-sdk/eolymp/keeper"
-	"github.com/eolymp/go-sdk/eolymp/typewriter"
 )
 
 type Importer interface {
@@ -14,15 +11,15 @@ type Importer interface {
 	HasInteractor() bool
 	GetInteractor() (*executor.Interactor, error)
 
-	GetStatements(context.Context, *typewriter.TypewriterService, string) ([]*atlas.Statement, error)
+	GetStatements(string) ([]*atlas.Statement, error)
 
 	GetSolutions() ([]*atlas.Solution, error)
 
-	GetTestsets(*keeper.KeeperService) ([]*Group, error)
+	GetTestsets() ([]*Group, error)
 
-	GetTemplates(*string, *keeper.KeeperService) ([]*atlas.Template, error)
+	GetTemplates(*string) ([]*atlas.Template, error)
 
-	GetAttachments(*string, context.Context, *typewriter.TypewriterService) ([]*atlas.Attachment, error)
+	GetAttachments(*string) ([]*atlas.Attachment, error)
 }
 
 type Group struct {

@@ -21,13 +21,19 @@ import (
 
 type PolygonImporter struct {
 	Importer
-	spec *Specification
-	path string
+	spec    *Specification
+	path    string
+	context context.Context
+	ts      *typewriter.TypewriterService
+	kpr     *keeper.KeeperService
 }
 
-func CreatePolygonImporter(path string) (*PolygonImporter, error) {
+func CreatePolygonImporter(path string, context context.Context, ts *typewriter.TypewriterService, kpr *keeper.KeeperService) (*PolygonImporter, error) {
 	p := new(PolygonImporter)
 	p.path = path
+	p.context = context
+	p.ts = ts
+	p.kpr = kpr
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		log.Printf("Import path %#v is invalid: %v", path, err)
@@ -73,8 +79,8 @@ var mapping = map[string][]string{
 	"rust":         {"rust"},
 }
 
-func (p PolygonImporter) GetVerifier() (*executor.Verifier, error) {
-	switch p.spec.Checker.Name {
+func (imp PolygonImporter) GetVerifier() (*executor.Verifier, error) {
+	switch imp.spec.Checker.Name {
 	case "std::rcmp4.cpp", // Single or more double, max any error 1E-4
 		"std::ncmp.cpp": // Single or more int64, ignores whitespaces
 		return &executor.Verifier{Type: executor.Verifier_TOKENS, Precision: 4, CaseSensitive: true}, nil
@@ -94,14 +100,14 @@ func (p PolygonImporter) GetVerifier() (*executor.Verifier, error) {
 	default:
 
 		for lang, types := range mapping {
-			source, ok := SourceByType(p.spec.Checker.Sources, types...)
+			source, ok := SourceByType(imp.spec.Checker.Sources, types...)
 			if !ok {
 				continue
 			}
 
-			log.Printf("Unknown checker name %#v, using source code", p.spec.Checker.Name)
+			log.Printf("Unknown checker name %#v, using source code", imp.spec.Checker.Name)
 
-			data, err := ioutil.ReadFile(filepath.Join(p.path, source.Path))
+			data, err := ioutil.ReadFile(filepath.Join(imp.path, source.Path))
 			if err != nil {
 				return nil, err
 			}
@@ -117,21 +123,21 @@ func (p PolygonImporter) GetVerifier() (*executor.Verifier, error) {
 	return nil, errors.New("checker configuration is not supported")
 }
 
-func (p PolygonImporter) HasInteractor() bool {
-	return len(p.spec.Interactor.Sources) > 0
+func (imp PolygonImporter) HasInteractor() bool {
+	return len(imp.spec.Interactor.Sources) > 0
 }
 
-func (p PolygonImporter) GetInteractor() (*executor.Interactor, error) {
+func (imp PolygonImporter) GetInteractor() (*executor.Interactor, error) {
 
 	for lang, types := range mapping {
-		source, ok := SourceByType(p.spec.Interactor.Sources, types...)
+		source, ok := SourceByType(imp.spec.Interactor.Sources, types...)
 		if !ok {
 			continue
 		}
 
-		log.Printf("Unknown interactor name %#v, using source code", p.spec.Checker.Name)
+		log.Printf("Unknown interactor name %#v, using source code", imp.spec.Checker.Name)
 
-		data, err := ioutil.ReadFile(filepath.Join(p.path, source.Path))
+		data, err := ioutil.ReadFile(filepath.Join(imp.path, source.Path))
 		if err != nil {
 			return nil, err
 		}
@@ -146,9 +152,9 @@ func (p PolygonImporter) GetInteractor() (*executor.Interactor, error) {
 	return nil, errors.New("interactor configuration is not supported")
 }
 
-func (p PolygonImporter) GetStatements(ctx context.Context, tw *typewriter.TypewriterService, source string) ([]*atlas.Statement, error) {
+func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, error) {
 	var statements []*atlas.Statement
-	for _, statement := range p.spec.Statements {
+	for _, statement := range imp.spec.Statements {
 		if statement.Type != "application/x-tex" {
 			continue
 		}
@@ -157,7 +163,7 @@ func (p PolygonImporter) GetStatements(ctx context.Context, tw *typewriter.Typew
 			continue
 		}
 
-		propdata, err := ioutil.ReadFile(filepath.Join(p.path, filepath.Dir(statement.Path), "problem-properties.json"))
+		propdata, err := ioutil.ReadFile(filepath.Join(imp.path, filepath.Dir(statement.Path), "problem-properties.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +197,7 @@ func (p PolygonImporter) GetStatements(ctx context.Context, tw *typewriter.Typew
 
 		content := strings.Join(parts, "\n\n")
 
-		content, err = UpdateContentWithPictures(ctx, tw, content, p.path+"/statements/"+statement.Language+"/")
+		content, err = UpdateContentWithPictures(imp.context, imp.ts, content, imp.path+"/statements/"+statement.Language+"/")
 		if err != nil {
 			return nil, err
 		}
@@ -208,9 +214,9 @@ func (p PolygonImporter) GetStatements(ctx context.Context, tw *typewriter.Typew
 	return statements, nil
 }
 
-func (p PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
+func (imp PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
 	var solutions []*atlas.Solution
-	for _, solution := range p.spec.Solutions {
+	for _, solution := range imp.spec.Solutions {
 		if solution.Type != "application/x-tex" {
 			continue
 		}
@@ -219,7 +225,7 @@ func (p PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
 			return nil, err
 		}
 
-		propdata, err := ioutil.ReadFile(filepath.Join(p.path, filepath.Dir(solution.Path), "problem-properties.json"))
+		propdata, err := ioutil.ReadFile(filepath.Join(imp.path, filepath.Dir(solution.Path), "problem-properties.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -244,17 +250,17 @@ func (p PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
 	return solutions, nil
 }
 
-func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error) {
+func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 
-	tags := p.getTags()
+	tags := imp.getTags()
 
 	blockMin := slices.Contains(tags, "block_min")
 
 	var groups []*Group
 
-	if len(p.spec.Judging.Testsets) > 0 {
-		testset := p.spec.Judging.Testsets[0]
-		for _, test := range p.spec.Judging.Testsets {
+	if len(imp.spec.Judging.Testsets) > 0 {
+		testset := imp.spec.Judging.Testsets[0]
+		for _, test := range imp.spec.Judging.Testsets {
 			if test.Name == "tests" {
 				testset = test
 			}
@@ -292,7 +298,7 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 			group := groupList[0]
 			found := false
 			for _, g := range groupList {
-				if g.Name == string(intName) {
+				if g.Name == strconv.Itoa(int(intName)) {
 					group = g
 					found = true
 					break
@@ -360,13 +366,13 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 
 				log.Printf("Processing %v test %v (Global Index: %v, ID: %#v) in testset %v (example: %v)", ts.Method, ti, gi, xtt.Id, xts.Index, ts.Sample)
 
-				input, err := MakeObject(filepath.Join(p.path, fmt.Sprintf(testset.InputPathPattern, gi+1)), kpr)
+				input, err := MakeObject(filepath.Join(imp.path, fmt.Sprintf(testset.InputPathPattern, gi+1)), imp.kpr)
 				if err != nil {
 					log.Printf("Unable to upload test input data to E-Olymp: %v", err)
 					return nil, err
 				}
 
-				answer, err := MakeObject(filepath.Join(p.path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)), kpr)
+				answer, err := MakeObject(filepath.Join(imp.path, fmt.Sprintf(testset.AnswerPathPattern, gi+1)), imp.kpr)
 				if err != nil {
 					log.Printf("Unable to upload test answer data to E-Olymp: %v", err)
 					return nil, err
@@ -396,7 +402,7 @@ func (p PolygonImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error
 	return groups, nil
 }
 
-func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([]*atlas.Template, error) {
+func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
 	templateLanguages := map[string][]string{
 		"files/template_cpp.cpp":   {"gpp", "cpp:17-gnu10"},
 		"files/template_java.java": {"java"},
@@ -405,14 +411,14 @@ func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([
 	}
 
 	var templates []*atlas.Template
-	for _, file := range p.spec.Templates {
+	for _, file := range imp.spec.Templates {
 		name := file.Source.Path
 		if list, ok := templateLanguages[name]; ok {
 			for _, lang := range list {
 				template := &atlas.Template{}
 				template.ProblemId = *pid
 				template.Runtime = lang
-				source, err := ioutil.ReadFile(filepath.Join(p.path, file.Source.Path))
+				source, err := ioutil.ReadFile(filepath.Join(imp.path, file.Source.Path))
 				if err != nil {
 					return nil, err
 				}
@@ -422,13 +428,13 @@ func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([
 		}
 	}
 
-	if len(p.spec.Graders) > 0 {
+	if len(imp.spec.Graders) > 0 {
 		template := &atlas.Template{}
 		template.ProblemId = *pid
 		template.Runtime = "cpp:17-gnu10"
 		var graders []*keeper.CreateObjectOutput
-		for _, file := range p.spec.Graders {
-			path := filepath.Join(p.path, file.Path)
+		for _, file := range imp.spec.Graders {
+			path := filepath.Join(imp.path, file.Path)
 			hasSolution := false
 			for _, asset := range file.Assets {
 				if asset.Name == "solution" {
@@ -436,7 +442,7 @@ func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([
 				}
 			}
 			if hasSolution {
-				obj, err := MakeObjectGetFile(path, kpr)
+				obj, err := MakeObjectGetFile(path, imp.kpr)
 				if err != nil {
 					fmt.Println("Failed to upload grader")
 					return nil, err
@@ -459,20 +465,20 @@ func (p PolygonImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([
 	return templates, nil
 }
 
-func (p PolygonImporter) getTags() []string {
+func (imp PolygonImporter) getTags() []string {
 	var tags []string
-	for _, tag := range p.spec.Tags {
+	for _, tag := range imp.spec.Tags {
 		tags = append(tags, tag.Value)
 	}
 	return tags
 }
 
-func (p PolygonImporter) GetAttachments(pid *string, ctx context.Context, tw *typewriter.TypewriterService) ([]*atlas.Attachment, error) {
+func (imp PolygonImporter) GetAttachments(pid *string) ([]*atlas.Attachment, error) {
 	var attachments []*atlas.Attachment
 
-	for _, material := range p.spec.Materials {
+	for _, material := range imp.spec.Materials {
 		if material.Publish == "with-statement" {
-			data, err := ioutil.ReadFile(filepath.Join(p.path, material.Path))
+			data, err := ioutil.ReadFile(filepath.Join(imp.path, material.Path))
 			if err != nil {
 				fmt.Println("Failed to upload material")
 				return nil, err
@@ -481,7 +487,7 @@ func (p PolygonImporter) GetAttachments(pid *string, ctx context.Context, tw *ty
 			splits := strings.Split(material.Path, "/")
 			fileName := splits[len(splits)-1]
 
-			asset, err := tw.UploadAsset(ctx, &typewriter.UploadAssetInput{Filename: fileName, Data: data})
+			asset, err := imp.ts.UploadAsset(imp.context, &typewriter.UploadAssetInput{Filename: fileName, Data: data})
 			if err != nil {
 				log.Println(err)
 				return nil, err

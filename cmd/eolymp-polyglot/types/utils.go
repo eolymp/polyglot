@@ -176,3 +176,45 @@ func GetTestsFromLocation(path string, kpr *keeper.KeeperService) ([]*atlas.Test
 	}
 	return tests, nil
 }
+
+func GetTestsFromTexStatement(data string, kpr *keeper.KeeperService) (tests []*atlas.Test, err error) {
+	split := strings.Split(data, "\\exmp{")
+	for i, d := range split {
+		if i == 0 {
+			continue
+		}
+		tst := strings.Split(d, "}")
+		inputData := RemoveSpaces(tst[0])
+		outputData := RemoveSpaces(strings.Split(tst[1], "{")[1])
+		input, err := MakeObjectByData([]byte(inputData), kpr)
+		if err != nil {
+			log.Printf("Unable to upload test input data to E-Olymp: %v", err)
+			return nil, err
+		}
+		output, err := MakeObjectByData([]byte(outputData), kpr)
+		if err != nil {
+			log.Printf("Unable to upload test output data to E-Olymp: %v", err)
+			return nil, err
+		}
+		log.Printf("Uploaded sample %d", i)
+		test := &atlas.Test{}
+		test.Index = int32(i)
+		test.Example = true
+		test.Score = 0
+		test.InputObjectId = input.Key
+		test.AnswerObjectId = output.Key
+		tests = append(tests, test)
+	}
+	return tests, nil
+}
+
+func GetExamplesFromLocation(path string, kpr *keeper.KeeperService) (tests []*atlas.Test, err error) {
+	tests, err = GetTestsFromLocation(path, kpr)
+	if err != nil {
+		return tests, err
+	}
+	for i := 0; i < len(tests); i++ {
+		tests[i].Example = true
+	}
+	return tests, nil
+}

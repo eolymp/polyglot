@@ -32,7 +32,7 @@ func WithRetry(retries int) func(Client) Client {
 				return resp, nil
 			}
 
-			return nil, err
+			return resp, err
 		})
 	}
 }

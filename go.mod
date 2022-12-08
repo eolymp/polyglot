@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/antchfx/xmlquery v1.3.12
+	github.com/eolymp/go-sdk v0.0.0-20221204103021-56ff0263fd2c
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.13.0
@@ -13,8 +14,6 @@ require (
 require (
 	github.com/antchfx/xpath v1.2.1 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59 // indirect
-	github.com/frankban/quicktest v1.14.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

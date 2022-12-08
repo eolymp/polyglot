@@ -17,13 +17,19 @@ type EjudgeImporter struct {
 	Importer
 	path          string
 	mainStatement string
+	context       context.Context
+	ts            *typewriter.TypewriterService
+	kpr           *keeper.KeeperService
 }
 
-const DefaultLang = "gpp"
+const EjudgeDefaultLang = "gpp"
 
-func CreateEjudgeImporter(path string) (*EjudgeImporter, error) {
+func CreateEjudgeImporter(path string, context context.Context, ts *typewriter.TypewriterService, kpr *keeper.KeeperService) (*EjudgeImporter, error) {
 	importer := new(EjudgeImporter)
 	importer.path = path
+	importer.context = context
+	importer.ts = ts
+	importer.kpr = kpr
 	files, err := ioutil.ReadDir(filepath.Join(path, "statement"))
 	if err != nil {
 		return nil, err
@@ -38,25 +44,25 @@ func CreateEjudgeImporter(path string) (*EjudgeImporter, error) {
 	return importer, nil
 }
 
-func (p EjudgeImporter) GetVerifier() (*executor.Verifier, error) {
+func (imp EjudgeImporter) GetVerifier() (*executor.Verifier, error) {
 	names := [2]string{"check.cpp", "checker.cpp"}
 	for _, name := range names {
-		data, err := ioutil.ReadFile(filepath.Join(p.path, name))
+		data, err := ioutil.ReadFile(filepath.Join(imp.path, name))
 		if err == nil {
 			return &executor.Verifier{
 				Type:   executor.Verifier_PROGRAM,
 				Source: string(data), // todo: actually read file
-				Lang:   DefaultLang,
+				Lang:   EjudgeDefaultLang,
 			}, nil
 		}
 	}
 	return &executor.Verifier{Type: executor.Verifier_TOKENS, Precision: 0, CaseSensitive: true}, nil
 }
 
-func (p EjudgeImporter) HasInteractor() bool {
+func (imp EjudgeImporter) HasInteractor() bool {
 	names := [2]string{"inter.cpp", "interactor.cpp"}
 	for _, name := range names {
-		_, err := ioutil.ReadFile(filepath.Join(p.path, name))
+		_, err := ioutil.ReadFile(filepath.Join(imp.path, name))
 		if err == nil {
 			return true
 		}
@@ -64,23 +70,23 @@ func (p EjudgeImporter) HasInteractor() bool {
 	return false
 }
 
-func (p EjudgeImporter) GetInteractor() (*executor.Interactor, error) {
+func (imp EjudgeImporter) GetInteractor() (*executor.Interactor, error) {
 	names := [2]string{"inter.cpp", "interactor.cpp"}
 	for _, name := range names {
-		data, err := ioutil.ReadFile(filepath.Join(p.path, name))
+		data, err := ioutil.ReadFile(filepath.Join(imp.path, name))
 		if err == nil {
 			return &executor.Interactor{
 				Type:   executor.Interactor_PROGRAM,
 				Source: string(data), // todo: actually read file
-				Lang:   DefaultLang,
+				Lang:   EjudgeDefaultLang,
 			}, nil
 		}
 	}
 	return nil, nil
 }
 
-func (p EjudgeImporter) GetStatements(context context.Context, ts *typewriter.TypewriterService, source string) ([]*atlas.Statement, error) {
-	data, err := ioutil.ReadFile(filepath.Join(p.path, "statement", p.mainStatement))
+func (imp EjudgeImporter) GetStatements(source string) ([]*atlas.Statement, error) {
+	data, err := ioutil.ReadFile(filepath.Join(imp.path, "statement", imp.mainStatement))
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +106,15 @@ func (p EjudgeImporter) GetStatements(context context.Context, ts *typewriter.Ty
 	return statements, nil
 }
 
-func (p EjudgeImporter) GetSolutions() ([]*atlas.Solution, error) {
+func (imp EjudgeImporter) GetSolutions() ([]*atlas.Solution, error) {
 	return nil, nil
 }
 
-func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error) {
+func (imp EjudgeImporter) GetTestsets() ([]*Group, error) {
 
 	var groups []*Group
 
-	stf, err := ioutil.ReadFile(filepath.Join(p.path, "statement", p.mainStatement))
+	stf, err := ioutil.ReadFile(filepath.Join(imp.path, "statement", imp.mainStatement))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +126,7 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 	memory := uint64(megabytes * 1024 * 1024)
 	split = strings.Split(data, "\\exmp{")
 
-	examples, err := GetTestsFromLocation(filepath.Join(p.path, "statement"), kpr)
+	examples, err := GetTestsFromLocation(filepath.Join(imp.path, "statement"), imp.kpr)
 	if err != nil {
 		return nil, err
 	}
@@ -155,12 +161,12 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 			tst := strings.Split(d, "}")
 			inputData := RemoveSpaces(tst[0])
 			outputData := RemoveSpaces(strings.Split(tst[1], "{")[1])
-			input, err := MakeObjectByData([]byte(inputData), kpr)
+			input, err := MakeObjectByData([]byte(inputData), imp.kpr)
 			if err != nil {
 				log.Printf("Unable to upload test input data to E-Olymp: %v", err)
 				return nil, err
 			}
-			output, err := MakeObjectByData([]byte(outputData), kpr)
+			output, err := MakeObjectByData([]byte(outputData), imp.kpr)
 			if err != nil {
 				log.Printf("Unable to upload test output data to E-Olymp: %v", err)
 				return nil, err
@@ -180,7 +186,7 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 
 	newGroup := new(Group)
 
-	tests, err := GetTestsFromLocation(filepath.Join(p.path, "tests"), kpr)
+	tests, err := GetTestsFromLocation(filepath.Join(imp.path, "tests"), imp.kpr)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +214,10 @@ func (p EjudgeImporter) GetTestsets(kpr *keeper.KeeperService) ([]*Group, error)
 	return groups, nil
 }
 
-func (p EjudgeImporter) GetTemplates(pid *string, kpr *keeper.KeeperService) ([]*atlas.Template, error) {
+func (imp EjudgeImporter) GetTemplates(pid *string) ([]*atlas.Template, error) {
 	return nil, nil
 }
 
-func (p EjudgeImporter) GetAttachments(*string, context.Context, *typewriter.TypewriterService) ([]*atlas.Attachment, error) {
+func (imp EjudgeImporter) GetAttachments(*string) ([]*atlas.Attachment, error) {
 	return nil, nil
 }

@@ -14,18 +14,21 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 	var err error
 
 	var imp types.Importer
+	ctx := context.Background()
 
-	if format == "ejudge" {
-		imp, err = types.CreateEjudgeImporter(path)
+	if format == "eolymp" {
+		imp, err = types.CreateEolympImporter(ctx, path, atl)
+	} else if format == "ejudge" {
+		imp, err = types.CreateEjudgeImporter(path, ctx, tw, kpr)
+	} else if format == "dots" {
+		imp, err = types.CreateDotsImporter(path, ctx, tw, kpr)
 	} else {
-		imp, err = types.CreatePolygonImporter(path)
+		imp, err = types.CreatePolygonImporter(path, ctx, tw, kpr)
 	}
 
 	if err != nil {
 		return err
 	}
-
-	ctx := context.Background()
 
 	statements := map[string]*atlas.Statement{}
 	solutions := map[string]*atlas.Solution{}
@@ -106,7 +109,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		}
 	}
 
-	templates, err := imp.GetTemplates(pid, kpr)
+	templates, err := imp.GetTemplates(pid)
 	if err != nil {
 		return err
 	}
@@ -154,7 +157,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 	}
 
 	if !skipTests {
-		testsetList, err := imp.GetTestsets(kpr)
+		testsetList, err := imp.GetTestsets()
 		if err != nil {
 			log.Println(err)
 			log.Println("Failed to get testsets")
@@ -170,7 +173,6 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 				}
 
 				delete(testsets, group.Name)
-
 				if xts.Id != "" {
 					_, err = atl.UpdateTestset(ctx, &atlas.UpdateTestsetInput{TestsetId: xts.Id, ProblemId: *pid, Testset: xts})
 					if err != nil {
@@ -193,12 +195,12 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 
 				// upload tests
 
-				for ti, xtt := range group.Tests {
-					oldTest, ok := tests[fmt.Sprint(xts.Index, "/", int32(ti+1))]
+				for _, xtt := range group.Tests {
+					oldTest, ok := tests[fmt.Sprint(group.Name, "/", xtt.Index)]
 					if ok {
 						xtt.Id = oldTest.Id
 					}
-					delete(tests, fmt.Sprint(xts.Index, "/", int32(ti+1)))
+					delete(tests, fmt.Sprint(group.Name, "/", xtt.Index))
 
 					if xtt.Id == "" {
 						out, err := atl.CreateTest(ctx, &atlas.CreateTestInput{TestsetId: xts.Id, ProblemId: *pid, Test: xtt})
@@ -244,7 +246,12 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 
 	newStatements := map[string]*atlas.Statement{}
 
-	statementList, err := imp.GetStatements(ctx, tw, conf.Source)
+	statementList, err := imp.GetStatements(conf.Source)
+	if err != nil {
+		log.Println(err)
+		log.Println("Failed to get statements")
+		return err
+	}
 
 	// get all statements
 	for _, statement := range statementList {
@@ -363,7 +370,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		log.Println(attachment.Name, "has been deleted")
 	}
 
-	attachments, err := imp.GetAttachments(pid, ctx, tw)
+	attachments, err := imp.GetAttachments(pid)
 	if err != nil {
 		return err
 	}
