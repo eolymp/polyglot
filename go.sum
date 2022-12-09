@@ -66,6 +66,8 @@ github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59 h1:rDPN88xV/RscFv7c4
 github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
 github.com/eolymp/go-sdk v0.0.0-20221204103021-56ff0263fd2c h1:FCulk7GeUqw57RdvKYqlp6Zdiz6yl0WQiqYJ803z51M=
 github.com/eolymp/go-sdk v0.0.0-20221204103021-56ff0263fd2c/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
+github.com/eolymp/go-sdk v0.0.0-20221209205240-5d94dbbb307f h1:uySiNN1X9m1cBKXJGkXqNYSU4OK/Zkjye+Bsf1OeCA8=
+github.com/eolymp/go-sdk v0.0.0-20221209205240-5d94dbbb307f/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
 github.com/frankban/quicktest v1.14.3 h1:FJKSZTDHjyhriyC81FLQ0LY93eSai0ZyR/ZIkd3ZUKE=
 github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4HY=
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=

@@ -1,11 +1,13 @@
 package types
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
 	"github.com/eolymp/go-sdk/eolymp/typewriter"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -75,32 +77,94 @@ func MakeObject(path string, kpr *keeper.KeeperService) (key string, err error) 
 	if err != nil {
 		return "", err
 	}
-	return output.Key, err
+	return output, err
 }
 
-func MakeObjectGetFile(path string, kpr *keeper.KeeperService) (output *keeper.CreateObjectOutput, err error) {
+func MakeObjectGetFile(path string, kpr *keeper.KeeperService) (key string, err error) {
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	return MakeObjectByData(data, kpr)
 }
 
-func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (output *keeper.CreateObjectOutput, err error) {
-	var out *keeper.CreateObjectOutput
-	for i := 0; i < RepeatNumber; i++ {
-		out, err = kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
-		if err == nil {
-			return out, nil
+func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (key string, err error) {
+	return UploadObject(kpr, bytes.NewReader(data))
+}
+
+type ReaderSizer interface {
+	io.Reader
+	Size() int64
+}
+
+func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
+
+	// single call API for a small object
+	if sizer, ok := reader.(ReaderSizer); ok && sizer.Size() < 5242880 {
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return "", err
 		}
 
-		log.Printf("Error while uploading file: %v", err)
-		time.Sleep(TimeSleep)
+		out, err := kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
+		if err != nil {
+			return "", err
+		}
+
+		return out.Key, nil
 	}
 
-	return nil, err
+	// multipart upload for tests > 5MB
+	upload, err := kpr.StartMultipartUpload(context.Background(), &keeper.StartMultipartUploadInput{})
+	if err != nil {
+		return "", err
+	}
+
+	var parts []*keeper.CompleteMultipartUploadInput_Part
+
+	buffer := make([]byte, 5242880) // upload in chunks of 5MB
+	for i := 1; ; i++ {
+		length, err := reader.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return "", err
+		}
+
+		log.Printf("Uploading part #%d, %d bytes", i, length)
+
+		part, err := kpr.UploadPart(context.Background(), &keeper.UploadPartInput{
+			ObjectId:   upload.GetObjectId(),
+			UploadId:   upload.GetUploadId(),
+			PartNumber: uint32(i),
+			Data:       buffer[0:length],
+		})
+
+		if err != nil {
+			return "", err
+		}
+
+		parts = append(parts, &keeper.CompleteMultipartUploadInput_Part{
+			Number: uint32(i),
+			Etag:   part.GetEtag(),
+		})
+	}
+
+	_, err = kpr.CompleteMultipartUpload(context.Background(), &keeper.CompleteMultipartUploadInput{
+		ObjectId: upload.GetObjectId(),
+		UploadId: upload.GetUploadId(),
+		Parts:    parts,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return upload.GetObjectId(), nil
 }
 
 func RemoveSpaces(data string) string {
@@ -201,8 +265,8 @@ func GetTestsFromTexStatement(data string, kpr *keeper.KeeperService) (tests []*
 		test.Index = int32(i)
 		test.Example = true
 		test.Score = 0
-		test.InputObjectId = input.Key
-		test.AnswerObjectId = output.Key
+		test.InputObjectId = input
+		test.AnswerObjectId = output
 		tests = append(tests, test)
 	}
 	return tests, nil

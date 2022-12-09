@@ -176,8 +176,8 @@ func (imp EjudgeImporter) GetTestsets() ([]*Group, error) {
 			test.Index = int32(i)
 			test.Example = true
 			test.Score = 1
-			test.InputObjectId = input.Key
-			test.AnswerObjectId = output.Key
+			test.InputObjectId = input
+			test.AnswerObjectId = output
 			samples.Tests = append(samples.Tests, test)
 		}
 		groups = append(groups, samples)

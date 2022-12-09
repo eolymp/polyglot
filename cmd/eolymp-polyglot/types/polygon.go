@@ -270,9 +270,11 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 		if len(groupList) == 0 {
 			groupList = []SpecificationGroup{
 				{FeedbackPolicy: "icpc", Name: "0", Points: 0, PointsPolicy: "each-test"},
-				{FeedbackPolicy: "icpc", Name: "1", Points: 100, PointsPolicy: "all"},
+				{FeedbackPolicy: "icpc-expanded", Name: "1", Points: 100, PointsPolicy: "all"},
 			}
 		}
+
+		log.Println(groupList)
 
 		// read tests by group
 		groupTests := map[uint32][]SpecificationTest{}
@@ -432,7 +434,6 @@ func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) 
 		template := &atlas.Template{}
 		template.ProblemId = *pid
 		template.Runtime = "cpp:17-gnu10"
-		var graders []*keeper.CreateObjectOutput
 		for _, file := range imp.spec.Graders {
 			path := filepath.Join(imp.path, file.Path)
 			hasSolution := false
@@ -447,12 +448,11 @@ func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) 
 					fmt.Println("Failed to upload grader")
 					return nil, err
 				}
-				graders = append(graders, obj)
 				splits := strings.Split(path, "/")
 				fileName := splits[len(splits)-1]
 				f := atlas.File{
 					Path:      fileName,
-					SourceErn: obj.BlobErn,
+					SourceErn: obj, //obj.BlobErn, // TODO FIX IT
 				}
 				log.Println(fileName, "has been uploaded")
 				template.Files = append(template.Files, &f)
