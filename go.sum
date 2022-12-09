@@ -62,10 +62,6 @@ github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1m
 github.com/envoyproxy/go-control-plane v0.9.7/go.mod h1:cwu0lG7PUMfa9snN8LXBig5ynNVH9qI8YYLbd1fK2po=
 github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.mod h1:cXg6YxExXjJnVBQHBLXeUAgxn2UodCpnH306RInaBQk=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
-github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59 h1:rDPN88xV/RscFv7c4dt1X1Lmz2lQ1/d4bJXsqVQxabg=
-github.com/eolymp/go-sdk v0.0.0-20221126004209-0bb26537ac59/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
-github.com/eolymp/go-sdk v0.0.0-20221204103021-56ff0263fd2c h1:FCulk7GeUqw57RdvKYqlp6Zdiz6yl0WQiqYJ803z51M=
-github.com/eolymp/go-sdk v0.0.0-20221204103021-56ff0263fd2c/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
 github.com/eolymp/go-sdk v0.0.0-20221209205240-5d94dbbb307f h1:uySiNN1X9m1cBKXJGkXqNYSU4OK/Zkjye+Bsf1OeCA8=
 github.com/eolymp/go-sdk v0.0.0-20221209205240-5d94dbbb307f/go.mod h1:qHN2xT7v5uX9zle1mj7/43oM4LzmIUEK06lei0YcM94=
 github.com/frankban/quicktest v1.14.3 h1:FJKSZTDHjyhriyC81FLQ0LY93eSai0ZyR/ZIkd3ZUKE=
