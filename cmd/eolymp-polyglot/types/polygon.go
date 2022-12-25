@@ -340,7 +340,7 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 			}
 
 			xts.FeedbackPolicy = atlas.FeedbackPolicy_COMPLETE
-			if group.FeedbackPolicy == "icpc" || group.FeedbackPolicy == "points" {
+			if group.FeedbackPolicy == "icpc" || group.FeedbackPolicy == "points" || group.FeedbackPolicy == "none" {
 				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC
 			} else if group.FeedbackPolicy == "icpc-expanded" {
 				xts.FeedbackPolicy = atlas.FeedbackPolicy_ICPC_EXPANDED

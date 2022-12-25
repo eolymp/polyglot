@@ -3,6 +3,10 @@ package types
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
@@ -94,25 +98,36 @@ func MakeObjectByData(data []byte, kpr *keeper.KeeperService) (key string, err e
 	return UploadObject(kpr, bytes.NewReader(data))
 }
 
-type ReaderSizer interface {
-	io.Reader
-	Size() int64
-}
-
 func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
 
-	// single call API for a small object
-	if sizer, ok := reader.(ReaderSizer); ok && sizer.Size() < 5242880 {
-		data, err := io.ReadAll(reader)
-		if err != nil {
-			return "", err
-		}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
 
+	h := sha1.New()
+	h.Write(data)
+	sha := hex.EncodeToString(h.Sum(nil))
+	log.Println(sha)
+
+	if val, ok := GetCacheValue(sha); ok {
+		log.Println("Cached", val)
+		return val, nil
+	}
+
+	size := len(data)
+
+	maxSize := 5242880
+
+	// single call API for a small object
+	if size < maxSize {
 		out, err := kpr.CreateObject(context.Background(), &keeper.CreateObjectInput{Data: data})
 		if err != nil {
 			return "", err
 		}
+		log.Println(out.Key)
 
+		SetCacheValue(sha, out.Key)
 		return out.Key, nil
 	}
 
@@ -124,15 +139,14 @@ func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
 
 	var parts []*keeper.CompleteMultipartUploadInput_Part
 
-	buffer := make([]byte, 5242880) // upload in chunks of 5MB
+	pos := 0
 	for i := 1; ; i++ {
-		length, err := reader.Read(buffer)
-		if err == io.EOF {
+		if size <= pos {
 			break
 		}
-
-		if err != nil {
-			return "", err
+		length := maxSize
+		if size-pos < length {
+			length = size - pos
 		}
 
 		log.Printf("Uploading part #%d, %d bytes", i, length)
@@ -141,7 +155,7 @@ func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
 			ObjectId:   upload.GetObjectId(),
 			UploadId:   upload.GetUploadId(),
 			PartNumber: uint32(i),
-			Data:       buffer[0:length],
+			Data:       data[pos : pos+length],
 		})
 
 		if err != nil {
@@ -152,6 +166,8 @@ func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
 			Number: uint32(i),
 			Etag:   part.GetEtag(),
 		})
+
+		pos += maxSize
 	}
 
 	_, err = kpr.CompleteMultipartUpload(context.Background(), &keeper.CompleteMultipartUploadInput{
@@ -164,7 +180,10 @@ func UploadObject(kpr *keeper.KeeperService, reader io.Reader) (string, error) {
 		return "", err
 	}
 
-	return upload.GetObjectId(), nil
+	key, err := upload.GetObjectId(), nil
+	SetCacheValue(sha, key)
+
+	return key, err
 }
 
 func RemoveSpaces(data string) string {
@@ -281,4 +300,50 @@ func GetExamplesFromLocation(path string, kpr *keeper.KeeperService) (tests []*a
 		tests[i].Example = true
 	}
 	return tests, nil
+}
+
+func GetCacheValue(s string) (string, bool) {
+	val, ok := GetCache()[s]
+	return val, ok
+}
+
+func SetCacheValue(key string, value string) {
+	cache := GetCache()
+	log.Println("Set", key, value)
+	cache[key] = value
+	SaveCache(cache)
+}
+
+func SaveCache(data map[string]string) {
+	json, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	ioutil.WriteFile("cache.json", json, 0644)
+}
+
+func GetCache() map[string]string {
+	jsonFile, err := os.Open("cache.json")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			err = os.WriteFile("cache.json", []byte("{}"), 0644)
+			if err != nil {
+				log.Println("Can't create file")
+				log.Fatal(err)
+			}
+		}
+		jsonFile, err = os.Open("cache.json")
+		if err != nil {
+			log.Println("Can't open file")
+			log.Fatal(err)
+		}
+	}
+	defer jsonFile.Close()
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		panic(err)
+	}
+	var result map[string]string
+	json.Unmarshal(byteValue, &result)
+	return result
 }

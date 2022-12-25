@@ -3,3 +3,4 @@ downloads
 .DS_Store
 cmd/config/config.yml
 data.json
+cache.json
