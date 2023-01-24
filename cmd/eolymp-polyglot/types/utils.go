@@ -71,6 +71,8 @@ func MakeLocale(lang string) (string, error) {
 	switch lang {
 	case "ukrainian", "russian", "english", "hungarian":
 		return lang[:2], nil
+	case "kazakh":
+		return "kk", nil
 	default:
 		return lang, fmt.Errorf("unknown language %#v", lang)
 	}
@@ -199,6 +201,44 @@ func RemoveSpaces(data string) string {
 }
 
 func GetTestsFromLocation(path string, kpr *keeper.KeeperService) ([]*atlas.Test, error) {
+	testPaths, err := GetTestPathsFromLocation(path)
+	if err != nil {
+		return nil, err
+	}
+
+	testCounter := 0
+	var tests []*atlas.Test
+
+	for _, t := range testPaths {
+		inputName, outputName := t.input, t.output
+		log.Println(inputName, outputName)
+		input, err := MakeObject(inputName, kpr)
+		if err != nil {
+			log.Printf("Unable to upload test input data to E-Olymp: %v", err)
+			return nil, err
+		}
+		output, err := MakeObject(outputName, kpr)
+		if err != nil {
+			log.Printf("Unable to upload test output data to E-Olymp: %v", err)
+			return nil, err
+		}
+		log.Printf("Uploaded test %d", testCounter+1)
+		testCounter += 1
+		test := &atlas.Test{}
+		test.Index = int32(testCounter)
+		test.InputObjectId = input
+		test.AnswerObjectId = output
+		tests = append(tests, test)
+	}
+	return tests, nil
+}
+
+type TestPath struct {
+	input  string
+	output string
+}
+
+func GetTestPathsFromLocation(path string) ([]TestPath, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -230,30 +270,13 @@ func GetTestsFromLocation(path string, kpr *keeper.KeeperService) ([]*atlas.Test
 
 	sort.Strings(keys)
 
-	testCounter := 0
-	var tests []*atlas.Test
+	var tests []TestPath
 
 	for _, filename := range keys {
 		inputName, ok1 := inputs[filename]
 		outputName, ok2 := outputs[filename]
 		if ok1 && ok2 {
-			log.Println(filename, inputName, outputName)
-			input, err := MakeObject(inputName, kpr)
-			if err != nil {
-				log.Printf("Unable to upload test input data to E-Olymp: %v", err)
-				return nil, err
-			}
-			output, err := MakeObject(outputName, kpr)
-			if err != nil {
-				log.Printf("Unable to upload test output data to E-Olymp: %v", err)
-				return nil, err
-			}
-			log.Printf("Uploaded test %d", testCounter+1)
-			testCounter += 1
-			test := &atlas.Test{}
-			test.Index = int32(testCounter)
-			test.InputObjectId = input
-			test.AnswerObjectId = output
+			test := TestPath{input: inputName, output: outputName}
 			tests = append(tests, test)
 		}
 	}
@@ -346,4 +369,14 @@ func GetCache() map[string]string {
 	var result map[string]string
 	json.Unmarshal(byteValue, &result)
 	return result
+}
+
+func AddPointsToTests(g *Group) {
+	for i := 0; i < len(g.Tests); i++ {
+		score := 100 / len(g.Tests)
+		if len(g.Tests)-i <= 100%len(g.Tests) {
+			score += 1
+		}
+		g.Tests[i].Score = float32(score)
+	}
 }

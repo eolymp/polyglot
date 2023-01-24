@@ -195,6 +195,23 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 			parts = append(parts, fmt.Sprintf("\\Scoring\n\n%v", props.Scoring))
 		}
 
+		if imp.HasInteractor() {
+			tests, _ := GetTestPathsFromLocation(filepath.Join(imp.path, filepath.Dir(statement.Path)))
+			examples := "\\Examples\n\n"
+			for _, test := range tests {
+				input, err := ioutil.ReadFile(test.input)
+				if err != nil {
+					return nil, err
+				}
+				output, err := ioutil.ReadFile(test.output)
+				if err != nil {
+					return nil, err
+				}
+				examples += "\\exmp{" + string(input) + "}{" + string(output) + "\n}\n"
+			}
+			parts = append(parts, examples)
+		}
+
 		content := strings.Join(parts, "\n\n")
 
 		content, err = UpdateContentWithPictures(imp.context, imp.ts, content, imp.path+"/statements/"+statement.Language+"/")
@@ -254,7 +271,7 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 
 	tags := imp.getTags()
 
-	blockMin := slices.Contains(tags, "block_min")
+	blockMin := slices.Contains(tags, "block_min") || slices.Contains(tags, "min_block")
 
 	var groups []*Group
 
@@ -284,10 +301,19 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 			for _, group := range groups {
 				intName, err := strconv.ParseUint(group, 10, 32)
 				if err != nil {
-					if test.Sample {
+					if len(group) == 1 {
+						log.Println("GROUP", group, group[0], uint64(group[0]-'A'))
+						intName = uint64(group[0]-'A') + 1
+					} else if group == "sample" {
 						intName = 0
+					} else if group == "subtask" {
+						continue
 					} else {
-						intName = 1
+						if test.Sample {
+							intName = 0
+						} else {
+							intName = 1
+						}
 					}
 				}
 				groupIndex := uint32(intName)
@@ -420,6 +446,11 @@ func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) 
 				template := &atlas.Template{}
 				template.ProblemId = *pid
 				template.Runtime = lang
+				obj, err := MakeObjectGetFile(filepath.Join(imp.path, file.Source.Path), imp.kpr)
+				if err != nil {
+					return nil, err
+				}
+				template.SourceErn = obj
 				source, err := ioutil.ReadFile(filepath.Join(imp.path, file.Source.Path))
 				if err != nil {
 					return nil, err
