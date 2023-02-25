@@ -70,12 +70,12 @@ func (imp DotsImporter) GetStatements(source string) ([]*atlas.Statement, error)
 	statement = statement[0:strings.Index(statement, "\\Example")]
 	var statements []*atlas.Statement
 	statements = append(statements, &atlas.Statement{
-		Locale:  "uk",
-		Title:   name,
-		Content: statement,
-		Format:  atlas.Statement_TEX,
-		Author:  "",
-		Source:  source,
+		Locale:     "uk",
+		Title:      name,
+		ContentRaw: statement,
+		Format:     atlas.Statement_TEX,
+		Author:     "",
+		Source:     source,
 	})
 	return statements, nil
 }

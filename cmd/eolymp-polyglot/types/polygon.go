@@ -220,12 +220,12 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 		}
 
 		statements = append(statements, &atlas.Statement{
-			Locale:  locale,
-			Title:   props.Name,
-			Content: content,
-			Format:  atlas.Statement_TEX,
-			Author:  props.AuthorName,
-			Source:  source,
+			Locale:     locale,
+			Title:      props.Name,
+			ContentRaw: content,
+			Format:     atlas.Statement_TEX,
+			Author:     props.AuthorName,
+			Source:     source,
 		})
 	}
 	return statements, nil
