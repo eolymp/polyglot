@@ -79,7 +79,8 @@ func main() {
 		}
 	case "ip":
 		for i, path := 1, flag.Arg(1); path != ""; i, path = i+1, flag.Arg(i+1) {
-			if err := ImportProblem(path, pid, false, *format); err != nil {
+			id := *pid
+			if err := ImportProblem(path, &id, false, *format); err != nil {
 				log.Fatal(err)
 			}
 		}
