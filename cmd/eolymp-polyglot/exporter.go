@@ -150,33 +150,33 @@ func downloadGroups(imp types.Importer, path string) ([]exporter.SpecificationGr
 		}
 		specGroups = append(specGroups, *g)
 	}
-	if false {
-		testDir := filepath.Join(path, "tests")
-		if _, err := os.Stat(testDir); os.IsNotExist(err) {
-			err = os.Mkdir(testDir, os.ModePerm)
+
+	testDir := filepath.Join(path, "tests")
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		err = os.Mkdir(testDir, os.ModePerm)
+		if err != nil {
+			log.Println("Failed to create tests folder")
+			return nil, err
+		}
+	}
+	for _, group := range groups {
+		log.Println(group)
+		for _, test := range group.Tests {
+			log.Println(test)
+			name := strconv.Itoa(int(group.Name)) + "-" + strconv.Itoa(int(test.Index))
+			err = saveDataToFile(filepath.Join(testDir, name+".in"), test.InputObjectId)
 			if err != nil {
-				log.Println("Failed to create tests folder")
+				log.Println("Failed to download input")
+				return nil, err
+			}
+			err = saveDataToFile(filepath.Join(testDir, name+".out"), test.AnswerObjectId)
+			if err != nil {
+				log.Println("Failed to download output")
 				return nil, err
 			}
 		}
-		for _, group := range groups {
-			log.Println(group)
-			for _, test := range group.Tests {
-				log.Println(test)
-				name := strconv.Itoa(int(group.Name)) + "-" + strconv.Itoa(int(test.Index))
-				err = saveDataToFile(filepath.Join(testDir, name+".in"), test.InputObjectId)
-				if err != nil {
-					log.Println("Failed to download input")
-					return nil, err
-				}
-				err = saveDataToFile(filepath.Join(testDir, name+".out"), test.AnswerObjectId)
-				if err != nil {
-					log.Println("Failed to download output")
-					return nil, err
-				}
-			}
-		}
 	}
+
 	return specGroups, nil
 }
 
