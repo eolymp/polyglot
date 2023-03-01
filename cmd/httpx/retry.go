@@ -29,7 +29,7 @@ func WithRetry(retries int) func(Client) Client {
 					return nil, err
 				}
 
-				if resp.StatusCode != http.StatusOK {
+				if int(resp.StatusCode/100) != 2 {
 					body, _ = ioutil.ReadAll(resp.Body)
 					log.Printf("Server returned an error, status code %d: %s", resp.StatusCode, body)
 					time.Sleep(time.Second * time.Duration((attempt+1)*(attempt+1)))
