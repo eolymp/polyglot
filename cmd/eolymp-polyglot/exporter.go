@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 func Export(folder string, pid string) error {
@@ -62,7 +61,7 @@ func Export(folder string, pid string) error {
 		return err
 	}
 	fmt.Println(string(jsonBytes))
-	err = saveBytesToFile(filepath.Join(path, "config.json"), jsonBytes)
+	err = os.WriteFile(filepath.Join(path, "config.json"), jsonBytes, 0644)
 	if err != nil {
 		log.Println("Failed to save config.json")
 		return err
@@ -83,7 +82,7 @@ func downloadStatements(imp types.Importer, path string) ([]exporter.Specificati
 		specStatement.Title = statement.Title
 		specStatement.Locale = statement.GetLocale()
 		if len(statement.GetContentLatex()) > 0 {
-			err = saveStringToFile(filepath.Join(path, "statement.tex"), statement.GetContentLatex())
+			err = os.WriteFile(filepath.Join(path, "statement.tex"), []byte(statement.GetContentLatex()), 0644)
 			if err != nil {
 				log.Println("Failed to save statement.tex file")
 				return nil, err
@@ -116,7 +115,7 @@ func downloadChecker(imp types.Importer, path string) (exporter.SpecificationChe
 		specChecker.CaseSensitive = verifier.CaseSensitive
 		specChecker.Precision = verifier.Precision
 	} else {
-		err = saveStringToFile(filepath.Join(path, "checker.cpp"), verifier.Source)
+		err = os.WriteFile(filepath.Join(path, "checker.cpp"), []byte(verifier.Source), 0644)
 		if err != nil {
 			log.Println("Failed to save checker.cpp")
 			return specChecker, err
@@ -163,7 +162,7 @@ func downloadGroups(imp types.Importer, path string) ([]exporter.SpecificationGr
 		log.Println(group)
 		for _, test := range group.Tests {
 			log.Println(test)
-			name := strconv.Itoa(int(group.Name)) + "-" + strconv.Itoa(int(test.Index))
+			name := fmt.Sprint(group.Name) + "-" + fmt.Sprint(test.Index)
 			err = saveDataToFile(filepath.Join(testDir, name+".in"), test.InputObjectId)
 			if err != nil {
 				log.Println("Failed to download input")
@@ -181,53 +180,7 @@ func downloadGroups(imp types.Importer, path string) ([]exporter.SpecificationGr
 }
 
 func saveDataToFile(path string, id string) error {
-	result, err := http.Get("https://blob.eolymp.com/objects/" + id)
-	if err != nil {
-		log.Println("Failed to download test")
-		return err
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		log.Println("Failed to create test file")
-		return err
-	}
-	defer file.Close()
-	_, err = io.Copy(file, result.Body)
-	if err != nil {
-		log.Println("Failed to write data to file")
-		return err
-	}
-	return nil
-}
-
-func saveStringToFile(path string, data string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		log.Println("Failed to create file")
-		return err
-	}
-	defer file.Close()
-	_, err = file.WriteString(data)
-	if err != nil {
-		log.Println("Failed to write data to file")
-		return err
-	}
-	return nil
-}
-
-func saveBytesToFile(path string, data []byte) error {
-	file, err := os.Create(path)
-	if err != nil {
-		log.Println("Failed to create file")
-		return err
-	}
-	defer file.Close()
-	_, err = file.Write(data)
-	if err != nil {
-		log.Println("Failed to write data to file")
-		return err
-	}
-	return nil
+	return downloadFile(path, "https://blob.eolymp.com/objects/"+id)
 }
 
 func downloadFile(filepath string, url string) error {
