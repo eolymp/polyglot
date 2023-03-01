@@ -96,6 +96,10 @@ func main() {
 				log.Fatal(err)
 			}
 		}
+	case "export":
+		if err := Export("./export/", *pid); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatal("no command found")
 	}
