@@ -24,11 +24,18 @@ func WithRetry(retries int) func(Client) Client {
 				req.Body = ioutil.NopCloser(bytes.NewReader(body))
 
 				resp, err = c.Do(req)
+				if err != nil {
+					log.Printf("An error while making request to Eolymp API: %v", err)
+					return nil, err
+				}
+
 				if err != nil || resp.StatusCode != http.StatusOK {
-					log.Printf("Fail: %v (%d)", err, resp.StatusCode)
+					body, _ = ioutil.ReadAll(resp.Body)
+					log.Printf("Server returned an error, status code %d: (%s)", resp.StatusCode, body)
 					time.Sleep(time.Second * time.Duration((attempt+1)*(attempt+1)))
 					continue
 				}
+
 				return resp, nil
 			}
 
