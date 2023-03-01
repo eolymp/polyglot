@@ -96,6 +96,12 @@ func main() {
 				log.Fatal(err)
 			}
 		}
+	case "export":
+		for i, id := 1, flag.Arg(1); id != ""; i, id = i+1, flag.Arg(i+1) {
+			if err := Export("./export/", id); err != nil {
+				log.Fatal(err)
+			}
+		}
 	default:
 		log.Fatal("no command found")
 	}
