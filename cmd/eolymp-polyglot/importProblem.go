@@ -268,7 +268,8 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		} else {
 			xs.Locale = statement.Locale
 			xs.Title = statement.Title
-			xs.Content = statement.Content
+			xs.ContentRaw = statement.ContentRaw
+			xs.Content = nil
 			xs.Format = statement.Format
 			xs.Author = statement.Author
 			xs.Source = statement.Source
