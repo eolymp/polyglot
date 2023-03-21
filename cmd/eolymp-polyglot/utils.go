@@ -49,3 +49,7 @@ func GetData() map[string]interface{} {
 	json.Unmarshal(byteValue, &result)
 	return result
 }
+
+func SpaceIdToLink(spaceId string) string {
+	return conf.Eolymp.ApiUrl + "/spaces/" + spaceId
+}

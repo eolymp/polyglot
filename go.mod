@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/antchfx/xmlquery v1.3.12
-	github.com/eolymp/go-sdk v0.0.0-20230225011501-b51f817c4115
+	github.com/eolymp/go-sdk v0.0.0-20230318191153-9833a3ee9b78
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/spf13/viper v1.13.0

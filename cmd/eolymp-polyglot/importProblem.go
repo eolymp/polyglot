@@ -17,6 +17,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 	ctx := context.Background()
 
 	if format == "eolymp" {
+		atl := atlas.NewAtlasHttpClient(SpaceIdToLink(conf.Eolymp.SpaceImport), client)
 		imp, err = types.CreateEolympImporter(ctx, path, atl)
 	} else if format == "ejudge" {
 		imp, err = types.CreateEjudgeImporter(path, ctx, tw, kpr)

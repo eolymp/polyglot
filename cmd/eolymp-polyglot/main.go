@@ -35,8 +35,8 @@ func main() {
 	if err != nil {
 		log.Printf("Unable to decode into struct, %v", err)
 	}
-	apiLink := "https://api.eolymp.com"
-	spaceLink := apiLink + "/spaces/" + conf.SpaceId
+	apiLink := conf.Eolymp.ApiUrl
+	spaceLink := SpaceIdToLink(conf.SpaceId)
 
 	client = httpx.NewClient(
 		&http.Client{Timeout: 300 * time.Second},

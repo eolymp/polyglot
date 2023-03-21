@@ -2,6 +2,7 @@ eolymp:
   apiurl: "https://api.e-olymp.com"
   username: ""
   password: ""
+  spaceimport: ""
 polygon:
   login: ""
   password: ""

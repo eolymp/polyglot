@@ -9,9 +9,10 @@ type Configuration struct {
 }
 
 type Eolymp struct {
-	ApiUrl   string
-	Username string
-	Password string
+	ApiUrl      string
+	Username    string
+	Password    string
+	SpaceImport string
 }
 
 type Polygon struct {
