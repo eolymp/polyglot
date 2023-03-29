@@ -71,6 +71,8 @@ func MakeLocale(lang string) (string, error) {
 	switch lang {
 	case "ukrainian", "russian", "english", "hungarian":
 		return lang[:2], nil
+	case "polish":
+		return "pl", nil
 	case "kazakh":
 		return "kk", nil
 	default:

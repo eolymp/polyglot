@@ -86,7 +86,8 @@ func main() {
 		}
 	case "dp":
 		for i, link := 1, flag.Arg(1); link != ""; i, link = i+1, flag.Arg(i+1) {
-			if err := DownloadAndImportProblem(link, pid); err != nil {
+			id := *pid
+			if err := DownloadAndImportProblem(link, &id); err != nil {
 				log.Fatal(err)
 			}
 		}
