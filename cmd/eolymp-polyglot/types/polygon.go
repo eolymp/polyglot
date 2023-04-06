@@ -384,8 +384,12 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 
 			newGroup.Testset = xts
 
-			// upload tests
+			groupScore := float32(0.0)
+			for _, ts := range groupTest {
+				groupScore += ts.Points
+			}
 
+			// upload tests
 			for ti, ts := range groupTest {
 				xtt := &atlas.Test{}
 
@@ -408,7 +412,11 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 
 				xtt.Index = int32(ti + 1)
 				xtt.Example = intName == 0
-				xtt.Score = ts.Points
+				if blockMin {
+					xtt.Score = groupScore
+				} else {
+					xtt.Score = ts.Points
+				}
 				xtt.InputObjectId = input
 				xtt.AnswerObjectId = answer
 
