@@ -163,6 +163,10 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 			continue
 		}
 
+		if locale != "uk" { // TODO remove it
+			continue
+		}
+
 		propdata, err := ioutil.ReadFile(filepath.Join(imp.path, filepath.Dir(statement.Path), "problem-properties.json"))
 		if err != nil {
 			return nil, err
