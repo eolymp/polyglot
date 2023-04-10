@@ -195,7 +195,7 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 			parts = append(parts, fmt.Sprintf("\\Scoring\n\n%v", props.Scoring))
 		}
 
-		if imp.HasInteractor() {
+		if imp.AreExamplesOverwritten() {
 			tests, _ := GetTestPathsFromLocation(filepath.Join(imp.path, filepath.Dir(statement.Path)))
 			examples := "\\Examples\n\n"
 			for _, test := range tests {
@@ -411,7 +411,7 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 				}
 
 				xtt.Index = int32(ti + 1)
-				xtt.Example = intName == 0
+				xtt.Example = (intName == 0) && (!imp.AreExamplesOverwritten())
 				if blockMin {
 					xtt.Score = groupScore
 				} else {
@@ -542,4 +542,8 @@ func (imp PolygonImporter) GetAttachments(pid *string) ([]*atlas.Attachment, err
 		}
 	}
 	return attachments, nil
+}
+
+func (imp PolygonImporter) AreExamplesOverwritten() bool {
+	return imp.HasInteractor()
 }

@@ -74,6 +74,7 @@ func DownloadFileAndUnzip(URL, login, password, location string) error {
 	}()
 
 	if response.StatusCode != 200 {
+		log.Println(response)
 		return errors.New("non 200 status code")
 	}
 
