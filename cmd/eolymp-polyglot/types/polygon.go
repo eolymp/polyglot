@@ -13,6 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -385,8 +386,14 @@ func (imp PolygonImporter) GetTestsets() ([]*Group, error) {
 			newGroup.Testset = xts
 
 			groupScore := float32(0.0)
-			for _, ts := range groupTest {
-				groupScore += ts.Points
+			if blockMin {
+				for _, ts := range groupTest {
+					groupScore = float32(math.Max(float64(groupScore), float64(ts.Points)))
+				}
+			} else {
+				for _, ts := range groupTest {
+					groupScore += ts.Points
+				}
 			}
 
 			// upload tests
