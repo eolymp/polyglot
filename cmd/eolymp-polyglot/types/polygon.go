@@ -232,8 +232,8 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 	return statements, nil
 }
 
-func (imp PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
-	var solutions []*atlas.Solution
+func (imp PolygonImporter) GetSolutions() ([]*atlas.Editorial, error) {
+	var solutions []*atlas.Editorial
 	for _, solution := range imp.spec.Solutions {
 		if solution.Type != "application/x-tex" {
 			continue
@@ -258,10 +258,9 @@ func (imp PolygonImporter) GetSolutions() ([]*atlas.Solution, error) {
 		if props.Input != "" {
 			parts = append(parts, fmt.Sprintf("\\InputFile\n\n%v", props.Input))
 		}
-		solutions = append(solutions, &atlas.Solution{
+		solutions = append(solutions, &atlas.Editorial{
 			Locale:  locale,
-			Content: props.Solution,
-			Format:  atlas.Solution_TEX,
+			Content: &atlas.Editorial_ContentLatex{ContentLatex: props.Solution},
 		})
 	}
 

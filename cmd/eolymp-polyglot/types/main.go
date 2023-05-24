@@ -13,7 +13,7 @@ type Importer interface {
 
 	GetStatements(string) ([]*atlas.Statement, error)
 
-	GetSolutions() ([]*atlas.Solution, error)
+	GetSolutions() ([]*atlas.Editorial, error)
 
 	GetTestsets() ([]*Group, error)
 

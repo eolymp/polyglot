@@ -168,7 +168,7 @@ func (imp EjudgeImporter) GetStatements(source string) ([]*atlas.Statement, erro
 	return statements, nil
 }
 
-func (imp EjudgeImporter) GetSolutions() ([]*atlas.Solution, error) {
+func (imp EjudgeImporter) GetSolutions() ([]*atlas.Editorial, error) {
 	return nil, nil
 }
 

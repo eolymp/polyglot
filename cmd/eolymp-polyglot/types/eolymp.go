@@ -8,16 +8,18 @@ import (
 
 type EolympImporter struct {
 	Importer
-	context context.Context
-	atlas   *atlas.AtlasService
-	probId  string
+	context    context.Context
+	atlas      *atlas.AtlasService
+	editorials *atlas.EditorialServiceService
+	probId     string
 }
 
-func CreateEolympImporter(context context.Context, probId string, atlas *atlas.AtlasService) (*EolympImporter, error) {
+func CreateEolympImporter(context context.Context, probId string, atlas *atlas.AtlasService, editorials *atlas.EditorialServiceService) (*EolympImporter, error) {
 	importer := new(EolympImporter)
 	importer.context = context
 	importer.atlas = atlas
 	importer.probId = probId
+	importer.editorials = editorials
 	return importer, nil
 }
 
@@ -55,9 +57,9 @@ func (imp EolympImporter) GetStatements(string) ([]*atlas.Statement, error) {
 	return statements, nil
 }
 
-func (imp EolympImporter) GetSolutions() ([]*atlas.Solution, error) {
-	var solutions []*atlas.Solution
-	out, err := imp.atlas.ListSolutions(imp.context, &atlas.ListSolutionsInput{ProblemId: imp.probId})
+func (imp EolympImporter) GetSolutions() ([]*atlas.Editorial, error) {
+	var solutions []*atlas.Editorial
+	out, err := imp.editorials.ListEditorials(imp.context, &atlas.ListEditorialsInput{})
 	if err != nil {
 		return nil, err
 	}

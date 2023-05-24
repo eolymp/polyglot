@@ -80,7 +80,7 @@ func (imp DotsImporter) GetStatements(source string) ([]*atlas.Statement, error)
 	return statements, nil
 }
 
-func (imp DotsImporter) GetSolutions() ([]*atlas.Solution, error) {
+func (imp DotsImporter) GetSolutions() ([]*atlas.Editorial, error) {
 	return nil, nil
 }
 

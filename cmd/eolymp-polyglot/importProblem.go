@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
-	"github.com/eolymp/go-sdk/eolymp/wellknown"
 	"github.com/eolymp/polyglot/cmd/eolymp-polyglot/types"
 	"log"
 )
@@ -15,10 +14,11 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 
 	var imp types.Importer
 	ctx := context.Background()
+	edi := atlas.NewEditorialServiceHttpClient("https://api.eolymp.com/spaces/"+conf.SpaceId+"/problems/"+*pid, client)
 
 	if format == "eolymp" {
 		atl := atlas.NewAtlasHttpClient(SpaceIdToLink(conf.Eolymp.SpaceImport), client)
-		imp, err = types.CreateEolympImporter(ctx, path, atl)
+		imp, err = types.CreateEolympImporter(ctx, path, atl, edi)
 	} else if format == "ejudge" {
 		imp, err = types.CreateEjudgeImporter(path, ctx, tw, kpr)
 	} else if format == "dots" {
@@ -32,7 +32,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 	}
 
 	statements := map[string]*atlas.Statement{}
-	solutions := map[string]*atlas.Solution{}
+	editorials := map[string]*atlas.Editorial{}
 	testsets := map[uint32]*atlas.Testset{}
 	tests := map[string]*atlas.Test{}
 
@@ -56,23 +56,16 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 			statements[s.GetLocale()] = s
 		}
 
-		eq := wellknown.ExpressionID{
-			Is:    wellknown.ExpressionID_EQUAL,
-			Value: *pid,
-		}
-		var filters []*wellknown.ExpressionID
-		filters = append(filters, &eq)
-		input := &atlas.ListSolutionsInput{Filters: &atlas.ListSolutionsInput_Filter{ProblemId: filters}, ProblemId: *pid}
-		solout, err := atl.ListSolutions(ctx, input)
+		solout, err := edi.ListEditorials(ctx, &atlas.ListEditorialsInput{})
 		if err != nil {
-			log.Printf("Unable to list problem solutions in Atlas: %v", err)
+			log.Printf("Unable to list problem editorials in Atlas: %v", err)
 			return err
 		}
 
-		log.Printf("Found %v existing solutions", len(solout.GetItems()))
+		log.Printf("Found %v existing editorials", len(solout.GetItems()))
 
 		for _, s := range solout.GetItems() {
-			solutions[s.GetLocale()] = s
+			editorials[s.GetLocale()] = s
 		}
 
 		tsout, err := atl.ListTestsets(ctx, &atlas.ListTestsetsInput{ProblemId: *pid})
@@ -308,51 +301,50 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		}
 	}
 
-	// get all solutions
-	solutionList, err := imp.GetSolutions()
+	// get all editorials
+	editorialList, err := imp.GetSolutions()
 
 	if err != nil {
 		return nil
 	} else {
 
-		for _, solution := range solutionList {
+		for _, editorial := range editorialList {
 
-			xs, ok := solutions[solution.GetLocale()]
+			xs, ok := editorials[editorial.GetLocale()]
 			if !ok {
-				xs = solution
+				xs = editorial
 			} else {
-				xs.Locale = solution.Locale
-				xs.Content = solution.Content
-				xs.Format = solution.Format
+				xs.Locale = editorial.Locale
+				xs.Content = editorial.Content
 			}
-			delete(solutions, solution.GetLocale())
+			delete(editorials, editorial.GetLocale())
 
 			if xs.Id == "" {
-				out, err := atl.CreateSolution(ctx, &atlas.CreateSolutionInput{ProblemId: *pid, Solution: xs})
+				out, err := edi.CreateEditorial(ctx, &atlas.CreateEditorialInput{Editorial: xs})
 				if err != nil {
-					log.Printf("Unable to create solution: %v", err)
+					log.Printf("Unable to create editorial: %v", err)
 					return err
 				}
 
-				xs.Id = out.SolutionId
+				xs.Id = out.EditorialId
 
-				log.Printf("Created solution %v", xs.Id)
+				log.Printf("Created editorial %v", xs.Id)
 			} else {
-				_, err = atl.UpdateSolution(ctx, &atlas.UpdateSolutionInput{SolutionId: xs.Id, Solution: xs})
+				_, err = edi.UpdateEditorial(ctx, &atlas.UpdateEditorialInput{EditorialId: xs.Id, Editorial: xs})
 				if err != nil {
-					log.Printf("Unable to create solution: %v", err)
+					log.Printf("Unable to create editorial: %v", err)
 					return err
 				}
 
-				log.Printf("Updated solution %v", xs.Id)
+				log.Printf("Updated editorial %v", xs.Id)
 			}
 		}
 	}
 	// remove unused objects
-	for _, solution := range solutions {
-		log.Printf("Deleting unused solution %v", solution.Id)
-		if _, err := atl.DeleteSolution(ctx, &atlas.DeleteSolutionInput{SolutionId: solution.Id, ProblemId: *pid}); err != nil {
-			log.Printf("Unable to delete solution: %v", err)
+	for _, editorial := range editorials {
+		log.Printf("Deleting unused editorial %v", editorial.Id)
+		if _, err := edi.DeleteEditorial(ctx, &atlas.DeleteEditorialInput{EditorialId: editorial.Id}); err != nil {
+			log.Printf("Unable to delete editorial: %v", err)
 			return err
 		}
 	}

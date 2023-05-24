@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/eolymp/go-sdk/eolymp/atlas"
 	"github.com/eolymp/go-sdk/eolymp/executor"
 	"github.com/eolymp/polyglot/cmd/eolymp-polyglot/exporter"
 	"github.com/eolymp/polyglot/cmd/eolymp-polyglot/types"
@@ -29,7 +30,9 @@ func Export(folder string, pid string) error {
 		return err
 	}
 	ctx := context.Background()
-	imp, err := types.CreateEolympImporter(ctx, pid, atl)
+	edi := atlas.NewEditorialServiceHttpClient("https://api.eolymp.com/spaces/"+conf.SpaceId+"/problems/"+pid, client)
+
+	imp, err := types.CreateEolympImporter(ctx, pid, atl, edi)
 	if err != nil {
 		log.Println("Failed to create importer")
 		return err
