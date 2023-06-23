@@ -52,6 +52,12 @@ func Export(folder string, pid string) error {
 		return err
 	}
 
+	config.Interactor, err = downloadInteractor(imp, path)
+	if err != nil {
+		log.Println("Failed to download interactor")
+		return err
+	}
+
 	config.Statements, err = downloadStatements(imp, path)
 	if err != nil {
 		log.Println("Failed to download statements")
@@ -81,24 +87,25 @@ func downloadStatements(imp types.Importer, path string) ([]exporter.Specificati
 	}
 	for _, statement := range statements {
 		var specStatement exporter.SpecificationStatement
-		specStatement.Format = statement.GetFormat().String()
 		specStatement.Title = statement.Title
 		specStatement.Locale = statement.GetLocale()
-		if len(statement.GetContentLatex()) > 0 {
-			err = os.WriteFile(filepath.Join(path, "statement.tex"), []byte(statement.GetContentLatex()), 0644)
+		if len(statement.Content.GetLatex()) > 0 {
+			fileName := "statement-" + specStatement.Locale + ".tex"
+			err = os.WriteFile(filepath.Join(path, fileName), []byte(statement.Content.GetLatex()), 0644)
 			if err != nil {
 				log.Println("Failed to save statement.tex file")
 				return nil, err
 			}
-			specStatement.Source = "statement.tex"
+			specStatement.Source = fileName
 		}
 		if len(statement.GetDownloadLink()) > 0 {
-			err = downloadFile(filepath.Join(path, "statement.pdf"), statement.GetDownloadLink())
+			fileName := "statement-" + specStatement.Locale + ".pdf"
+			err = downloadFile(filepath.Join(path, fileName), statement.GetDownloadLink())
 			if err != nil {
 				log.Println("Failed to download PDF statement")
 				return nil, err
 			}
-			specStatement.PDF = "statement.pdf"
+			specStatement.PDF = fileName
 		}
 		specStatements = append(specStatements, specStatement)
 	}
@@ -118,14 +125,37 @@ func downloadChecker(imp types.Importer, path string) (exporter.SpecificationChe
 		specChecker.CaseSensitive = verifier.CaseSensitive
 		specChecker.Precision = verifier.Precision
 	} else {
-		err = os.WriteFile(filepath.Join(path, "checker.cpp"), []byte(verifier.Source), 0644)
+		checkerFile := "checker.cpp"
+		err = os.WriteFile(filepath.Join(path, checkerFile), []byte(verifier.Source), 0644)
 		if err != nil {
-			log.Println("Failed to save checker.cpp")
+			log.Println("Failed to save checker file")
 			return specChecker, err
 		}
-		specChecker.Location = "checker.cpp"
+		specChecker.Location = checkerFile
 	}
 	return specChecker, nil
+}
+
+func downloadInteractor(imp types.Importer, path string) (exporter.SpecificationInteractor, error) {
+	var specInteractor exporter.SpecificationInteractor
+	interactor, err := imp.GetInteractor()
+	if err != nil {
+		log.Println("Failed to download interactor")
+		return specInteractor, err
+	}
+	log.Println(imp.GetInteractor())
+	if interactor.Type == executor.Interactor_NONE {
+		specInteractor.Location = ""
+	} else {
+		interactorFile := "interactor.cpp"
+		err = os.WriteFile(filepath.Join(path, interactorFile), []byte(interactor.Source), 0644)
+		if err != nil {
+			log.Println("Failed to save checker file")
+			return specInteractor, err
+		}
+		specInteractor.Location = interactorFile
+	}
+	return specInteractor, nil
 }
 
 func downloadGroups(imp types.Importer, path string) ([]exporter.SpecificationGroup, error) {

@@ -262,9 +262,7 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 		} else {
 			xs.Locale = statement.Locale
 			xs.Title = statement.Title
-			xs.ContentRaw = statement.ContentRaw
-			xs.Content = nil
-			xs.Format = statement.Format
+			xs.Content = statement.Content
 			xs.Author = statement.Author
 			xs.Source = statement.Source
 		}
@@ -300,55 +298,6 @@ func ImportProblem(path string, pid *string, skipTests bool, format string) erro
 			return err
 		}
 	}
-
-	// get all editorials
-	editorialList, err := imp.GetSolutions()
-
-	if err != nil {
-		return nil
-	} else {
-
-		for _, editorial := range editorialList {
-
-			xs, ok := editorials[editorial.GetLocale()]
-			if !ok {
-				xs = editorial
-			} else {
-				xs.Locale = editorial.Locale
-				xs.Content = editorial.Content
-			}
-			delete(editorials, editorial.GetLocale())
-
-			if xs.Id == "" {
-				out, err := edi.CreateEditorial(ctx, &atlas.CreateEditorialInput{Editorial: xs})
-				if err != nil {
-					log.Printf("Unable to create editorial: %v", err)
-					return err
-				}
-
-				xs.Id = out.EditorialId
-
-				log.Printf("Created editorial %v", xs.Id)
-			} else {
-				_, err = edi.UpdateEditorial(ctx, &atlas.UpdateEditorialInput{EditorialId: xs.Id, Editorial: xs})
-				if err != nil {
-					log.Printf("Unable to create editorial: %v", err)
-					return err
-				}
-
-				log.Printf("Updated editorial %v", xs.Id)
-			}
-		}
-	}
-	// remove unused objects
-	for _, editorial := range editorials {
-		log.Printf("Deleting unused editorial %v", editorial.Id)
-		if _, err := edi.DeleteEditorial(ctx, &atlas.DeleteEditorialInput{EditorialId: editorial.Id}); err != nil {
-			log.Printf("Unable to delete editorial: %v", err)
-			return err
-		}
-	}
-
 	oldAttachments, err := atl.ListAttachments(ctx, &atlas.ListAttachmentsInput{ProblemId: *pid})
 	if err != nil {
 		return err
