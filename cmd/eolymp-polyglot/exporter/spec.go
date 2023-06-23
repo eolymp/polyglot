@@ -3,11 +3,11 @@ package exporter
 type SpecificationConfig struct {
 	Groups     []SpecificationGroup
 	Checker    SpecificationChecker
+	Interactor SpecificationInteractor
 	Statements []SpecificationStatement
 }
 
 type SpecificationStatement struct {
-	Format string
 	Locale string
 	Title  string
 	Source string
@@ -19,6 +19,10 @@ type SpecificationChecker struct {
 	Location      string
 	Precision     int32
 	CaseSensitive bool
+}
+
+type SpecificationInteractor struct {
+	Location string
 }
 
 type SpecificationGroup struct {
