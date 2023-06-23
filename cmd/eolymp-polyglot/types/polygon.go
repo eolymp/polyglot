@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/ecm"
 	"github.com/eolymp/go-sdk/eolymp/executor"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
 	"github.com/eolymp/go-sdk/eolymp/typewriter"
@@ -215,18 +216,21 @@ func (imp PolygonImporter) GetStatements(source string) ([]*atlas.Statement, err
 
 		content := strings.Join(parts, "\n\n")
 
+		if len(content) == 0 {
+			content = " "
+		}
+
 		content, err = UpdateContentWithPictures(imp.context, imp.ts, content, imp.path+"/statements/"+statement.Language+"/")
 		if err != nil {
 			return nil, err
 		}
 
 		statements = append(statements, &atlas.Statement{
-			Locale:     locale,
-			Title:      props.Name,
-			ContentRaw: content,
-			Format:     atlas.Statement_TEX,
-			Author:     props.AuthorName,
-			Source:     source,
+			Locale:  locale,
+			Title:   props.Name,
+			Content: &ecm.Content{Value: &ecm.Content_Latex{Latex: content}},
+			Author:  props.AuthorName,
+			Source:  source,
 		})
 	}
 	return statements, nil
@@ -493,17 +497,19 @@ func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) 
 					fmt.Println("Failed to upload grader")
 					return nil, err
 				}
+				obj = "ern:blob:" + obj
 				splits := strings.Split(path, "/")
 				fileName := splits[len(splits)-1]
 				f := atlas.File{
 					Path:      fileName,
 					SourceErn: obj, //obj.BlobErn, // TODO FIX IT
 				}
+
 				log.Println(fileName, "has been uploaded")
 				template.Files = append(template.Files, &f)
-				templates = append(templates, template)
 			}
 		}
+		templates = append(templates, template)
 
 	}
 
@@ -543,6 +549,7 @@ func (imp PolygonImporter) GetAttachments(pid *string) ([]*atlas.Attachment, err
 				Name:      fileName,
 				Link:      asset.Link,
 			}
+
 			log.Println(fileName, "has been uploaded")
 			attachments = append(attachments, &attachment)
 		}
