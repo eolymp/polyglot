@@ -264,7 +264,7 @@ func (imp PolygonImporter) GetSolutions() ([]*atlas.Editorial, error) {
 		}
 		solutions = append(solutions, &atlas.Editorial{
 			Locale:  locale,
-			Content: &atlas.Editorial_ContentLatex{ContentLatex: props.Solution},
+			Content: &ecm.Content{Value: &ecm.Content_Latex{Latex: props.Solution}},
 		})
 	}
 
