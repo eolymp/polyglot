@@ -509,7 +509,9 @@ func (imp PolygonImporter) GetTemplates(pid *string) ([]*atlas.Template, error) 
 				template.Files = append(template.Files, &f)
 			}
 		}
-		templates = append(templates, template)
+		if len(template.Files) > 0 {
+			templates = append(templates, template)
+		}
 
 	}
 
