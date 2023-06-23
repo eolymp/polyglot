@@ -60,13 +60,6 @@ func (imp EolympImporter) GetStatements(string) ([]*atlas.Statement, error) {
 func (imp EolympImporter) GetSolutions() ([]*atlas.Editorial, error) {
 	var solutions []*atlas.Editorial
 	out, err := imp.editorials.ListEditorials(imp.context, &atlas.ListEditorialsInput{})
-	if err != nil {
-		return nil, err
-	}
-	for _, solution := range out.GetItems() {
-		solution.Id = ""
-		solutions = append(solutions, solution)
-	}
 	return solutions, nil
 }
 

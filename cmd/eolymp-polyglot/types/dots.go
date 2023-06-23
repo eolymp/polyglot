@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/eolymp/go-sdk/eolymp/atlas"
+	"github.com/eolymp/go-sdk/eolymp/ecm"
 	"github.com/eolymp/go-sdk/eolymp/executor"
 	"github.com/eolymp/go-sdk/eolymp/keeper"
 	"github.com/eolymp/go-sdk/eolymp/typewriter"
@@ -70,12 +71,11 @@ func (imp DotsImporter) GetStatements(source string) ([]*atlas.Statement, error)
 	statement = statement[0:strings.Index(statement, "\\Example")]
 	var statements []*atlas.Statement
 	statements = append(statements, &atlas.Statement{
-		Locale:     "uk",
-		Title:      name,
-		ContentRaw: statement,
-		Format:     atlas.Statement_TEX,
-		Author:     "",
-		Source:     source,
+		Locale:  "uk",
+		Title:   name,
+		Content: &ecm.Content{Value: &ecm.Content_Latex{Latex: statement}},
+		Author:  "",
+		Source:  source,
 	})
 	return statements, nil
 }
