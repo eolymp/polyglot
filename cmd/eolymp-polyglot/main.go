@@ -57,6 +57,7 @@ func main() {
 	kpr = keeper.NewKeeperHttpClient(apiLink, client)
 
 	pid := flag.String("id", "", "Problem ID")
+	skipProblems := flag.Int("skipproblems", 0, "Number of first skipped problems")
 	format := flag.String("format", "polygon", "Problem Format")
 	flag.Parse()
 
@@ -73,7 +74,7 @@ func main() {
 		}
 	case "uc":
 		for i, contestId := 1, flag.Arg(1); contestId != ""; i, contestId = i+1, flag.Arg(i+1) {
-			if err := UpdateContest(contestId); err != nil {
+			if err := UpdateContest(contestId, *skipProblems); err != nil {
 				log.Fatal(err)
 			}
 		}

@@ -35,10 +35,10 @@ func ImportContest(contestId string) error {
 	return nil
 }
 
-func UpdateContest(contestId string) error {
+func UpdateContest(contestId string, firstProblem int) error {
 	data := GetData()
 	t := reflect.ValueOf(data[contestId])
-	for i := 0; i < t.Len(); i++ {
+	for i := firstProblem; i < t.Len(); i++ {
 		m := t.Index(i).Elem()
 		g := make(map[string]string)
 		iter := m.MapRange()
