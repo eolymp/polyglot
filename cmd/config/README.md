@@ -28,7 +28,7 @@ You should fill these field out only if you want to run telegram bot
 
 - `id` - the ID for internal use. For example, `A`, `B`, `C`. Those lettes you will need to type in the Telegram chat in order to upload the problem
 - `link` - the link to the Polygon problem. If should have the following format `https://polygon.codeforces.com/20wkaGA/arsijo/nameoftheproblem`
-- `pid` - the ID of the problem. Please note that it is NOT a number in the list of the problems. In order to get the ID of the problem, you should click on the problem and you will be the ID in the link. New problems have 5 digits at the moment of writing
+- `pid` - the ID of the problem. Please note that it is NOT a number in the list of the problems. In order to get the ID of the problem, you should click on the problem and you will be able to see the ID in the link. New problems have 5 digits at the moment of writing
 
 # General
 
