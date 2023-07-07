@@ -1,5 +1,5 @@
 eolymp:
-  apiurl: "https://api.e-olymp.com"
+  apiurl: "https://api.eolymp.com"
   username: ""
   password: ""
   spaceimport: ""
